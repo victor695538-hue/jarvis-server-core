@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+*.log
+.vercel/
+.railway/
+api/
+public/
+render.yaml
+nixpacks.toml
