@@ -425,6 +425,9 @@ app.post('/api/chat', async (req, res) => {
 
   // 1. Intentar responder vía OmniRoute
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    
     const omniRes = await fetch(`${OMNIROUTE_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -434,8 +437,12 @@ app.post('/api/chat', async (req, res) => {
       body: JSON.stringify({
         model: targetModel,
         messages: [systemMessage, ...sanitizedMessages],
+        stream: false
       }),
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
 
     if (omniRes.ok) {
       const data = await omniRes.json();
@@ -446,13 +453,26 @@ app.post('/api/chat', async (req, res) => {
           message: { role: 'assistant', content: data.choices[0].message.content },
         });
       }
+    } else {
+      const errorText = await omniRes.text();
+      console.log(`OmniRoute error ${omniRes.status}:`, errorText);
+      if (omniRes.status === 502 || omniRes.status === 503 || omniRes.status === 504) {
+        console.log('OmniRoute upstream error, falling back to Groq');
+      }
     }
   } catch (err: any) {
-    console.log('OmniRoute no disponible, utilizando fallback Groq:', err.message);
+    if (err.name === 'AbortError') {
+      console.log('OmniRoute timeout, falling back to Groq');
+    } else {
+      console.log('OmniRoute no disponible, utilizando fallback Groq:', err.message);
+    }
   }
 
-  // 2. Fallback a Groq (modelo actual disponible)
+// 2. Fallback a Groq (modelo actual disponible)
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -462,19 +482,29 @@ app.post('/api/chat', async (req, res) => {
       body: JSON.stringify({
         model: 'openai/gpt-oss-20b',
         messages: [systemMessage, ...sanitizedMessages],
+        stream: false
       }),
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
 
     const data = await response.json();
     if (response.ok && data.choices?.[0]?.message?.content) {
-return res.json({
-          success: true,
-          modelUsed: 'Groq gpt-oss-20b',
-          message: { role: 'assistant', content: data.choices[0].message.content },
-        });
+      return res.json({
+        success: true,
+        modelUsed: 'Groq gpt-oss-20b',
+        message: { role: 'assistant', content: data.choices[0].message.content },
+      });
+    } else {
+      console.error('Groq API error:', data.error || data);
     }
   } catch (err: any) {
-    console.error('Groq Chat error:', err.message);
+    if (err.name === 'AbortError') {
+      console.error('Groq Chat timeout');
+    } else {
+      console.error('Groq Chat error:', err.message);
+    }
   }
 
   // 3. Fallback a Pollinations AI (100% Gratis, Sin API Key)
