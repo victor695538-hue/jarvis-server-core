@@ -240,7 +240,6 @@
         ctx.arc(x, y, p.size, 0, Math.PI * 2);
         ctx.fill();
 
-        // Connecting electric arcs
         ctx.strokeStyle = 'rgba(0, 240, 255, 0.25)';
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -448,7 +447,6 @@
     let mediaRecorder = null;
     let audioChunks = [];
     let isListening = false;
-    let sttTimeout = null;
 
     if (SpeechRecognition) {
       recognition = new SpeechRecognition();
@@ -519,8 +517,12 @@
     async function startMediaRecorderFallback() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const options = MediaRecorder.isTypeSupported('audio/webm') ? { mimeType: 'audio/webm' } : {};
-        mediaRecorder = new MediaRecorder(stream, options);
+        let mimeType = 'audio/webm';
+        if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
+        else if (MediaRecorder.isTypeSupported('audio/aac')) mimeType = 'audio/aac';
+        else if (MediaRecorder.isTypeSupported('audio/wav')) mimeType = 'audio/wav';
+
+        mediaRecorder = new MediaRecorder(stream, { mimeType });
         audioChunks = [];
 
         mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
@@ -530,40 +532,35 @@
             return;
           }
 
-          const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+          const blob = new Blob(audioChunks, { type: mimeType });
           const reader = new FileReader();
           reader.readAsDataURL(blob);
           reader.onloadend = async () => {
             const base64 = reader.result.split(',')[1];
-            plasmaStatus.innerText = 'PROCESANDO TRANSCRIPCIÓN...';
-            
-            sttTimeout = setTimeout(() => {
-              plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR';
-            }, 7000);
+            plasmaStatus.innerText = 'TRANSCRIBIENDO VOZ...';
 
             try {
               const sttRes = await fetch('/api/stt', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${AUTH_TOKEN}` },
-                body: JSON.stringify({ audioBase64: base64, mimeType: mediaRecorder.mimeType })
+                body: JSON.stringify({ audioBase64: base64, mimeType })
               });
-              clearTimeout(sttTimeout);
               const sttData = await sttRes.json();
               if (sttData.success && sttData.text) {
+                plasmaTranscript.innerText = `"${sttData.text}"`;
                 sendMsg(sttData.text);
               } else {
                 plasmaStatus.innerText = 'NO SE DETECTÓ VOZ CLARA';
                 setTimeout(() => plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR', 2000);
               }
             } catch (err) {
-              clearTimeout(sttTimeout);
               plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR';
             }
           };
         };
         mediaRecorder.start();
       } catch (err) {
-        plasmaStatus.innerText = 'MICRÓFONO NO DISPONIBLE';
+        plasmaStatus.innerText = 'MICRÓFONO NO DISPONIBLE O DENEGADO';
       }
     }
 
