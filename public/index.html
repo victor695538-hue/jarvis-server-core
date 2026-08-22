@@ -608,7 +608,7 @@
             sendMsg(commandAfterWake);
           } else {
             setState('listening', '¿Sí, señor? Escuchando su orden...');
-            speakNative('¿Sí, señor?');
+            speakJARVIS('¿Sí, señor?');
             setTimeout(() => startVoiceSession(), 1200);
           }
         }

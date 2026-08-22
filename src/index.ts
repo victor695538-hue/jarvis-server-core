@@ -162,6 +162,10 @@ app.post('/api/pc/command', async (req, res) => {
   res.json(result);
 });
 
+import { JarvisMemory } from './memory';
+
+const jarvisMemory = new JarvisMemory();
+
 async function getWeatherInfo(city: string = 'Madrid'): Promise<string> {
   try {
     const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=es&format=json`);
@@ -193,6 +197,57 @@ async function getNewsInfo(): Promise<string> {
 
 async function checkAndExecutePCCommand(text: string): Promise<{ executed: boolean; resultText?: string; imageBase64?: string; imageUrl?: string }> {
   const lower = text.toLowerCase();
+
+  // Detección de Memoria
+  if (lower.startsWith('recuerda que') || lower.startsWith('guarda que') || lower.includes('recuerda esto')) {
+    const fact = text.replace(/.*(recuerda que|guarda que|recuerda esto)\s*/i, '').trim();
+    if (fact) {
+      await jarvisMemory.remember(fact);
+      return { executed: true, resultText: `He guardado en mi memoria: '${fact}', señor.` };
+    }
+  }
+  if (lower.includes('qué recuerdas') || lower.includes('qué sabes de mí') || lower.includes('mis recuerdos')) {
+    const memories = await jarvisMemory.getAllMemories();
+    if (memories.length > 0) {
+      return { executed: true, resultText: `En mi memoria conservo los siguientes datos sobre usted, señor:\n• ${memories.join('\n• ')}` };
+    }
+    return { executed: true, resultText: 'Aún no tengo datos guardados en mi memoria sobre usted, señor.' };
+  }
+
+  // Detección de Tareas y Recordatorios
+  if (lower.includes('añade la tarea') || lower.startsWith('recuérdame') || lower.includes('agrega tarea')) {
+    const taskTitle = text.replace(/.*(añade la tarea|recuérdame|agrega tarea)\s*/i, '').trim();
+    if (taskTitle) {
+      await jarvisMemory.addTask(taskTitle);
+      return { executed: true, resultText: `He registrado su tarea y recordatorio: '${taskTitle}', señor.` };
+    }
+  }
+  if (lower.includes('lista de tareas') || lower.includes('mis tareas') || lower.includes('tareas pendientes')) {
+    const tasks = await jarvisMemory.getPendingTasks();
+    if (tasks.length > 0) {
+      const list = tasks.map((t) => `• ${t.title}`).join('\n');
+      return { executed: true, resultText: `Sus tareas pendientes son:\n${list}` };
+    }
+    return { executed: true, resultText: 'No tiene tareas pendientes en su lista, señor.' };
+  }
+
+  // Detección de Control de Volumen y Sistema PC
+  if (lower.includes('sube el volumen') || lower.includes('subir volumen')) {
+    const res = await sendTaskToPCAgent('setVolume', { volumeAction: 'up' });
+    return { executed: true, resultText: res.success ? 'Subiendo el volumen de su PC, señor.' : res.error };
+  }
+  if (lower.includes('baja el volumen') || lower.includes('bajar volumen')) {
+    const res = await sendTaskToPCAgent('setVolume', { volumeAction: 'down' });
+    return { executed: true, resultText: res.success ? 'Bajando el volumen de su PC, señor.' : res.error };
+  }
+  if (lower.includes('silencia el pc') || lower.includes('silenciar volumen')) {
+    const res = await sendTaskToPCAgent('setVolume', { volumeAction: 'mute' });
+    return { executed: true, resultText: res.success ? 'Ajustando el silencio en su PC, señor.' : res.error };
+  }
+  if (lower.includes('bloquea el pc') || lower.includes('bloquear pantalla')) {
+    const res = await sendTaskToPCAgent('lockPC');
+    return { executed: true, resultText: res.success ? 'Pantalla de su PC bloqueada correctamente, señor.' : res.error };
+  }
 
   // Detección de Tiempo / Clima
   if (lower.includes('tiempo') || lower.includes('clima') || lower.includes('temperatura') || lower.includes('hace hoy')) {
