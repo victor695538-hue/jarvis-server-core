@@ -451,7 +451,7 @@ app.post('/api/chat', async (req, res) => {
     console.log('OmniRoute no disponible, utilizando fallback Groq:', err.message);
   }
 
-  // 2. Fallback a Groq Llama-3.3
+  // 2. Fallback a Groq (modelo actual disponible)
   try {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -460,7 +460,7 @@ app.post('/api/chat', async (req, res) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-20b',
         messages: [systemMessage, ...sanitizedMessages],
       }),
     });
