@@ -34,94 +34,34 @@
     h1 { font-size: 17px; font-weight: 800; color: var(--cyan); letter-spacing: 2px; text-transform: uppercase; }
     .status-text { font-size: 11px; color: #64748b; margin-top: 1px; }
 
-    /* Immersive Full-Screen / Large Plasma Voice Interface Overlay */
+    /* Immersive Movie-Accurate Plasma Sphere Interface Overlay */
     #plasma-overlay {
       position: fixed;
       inset: 0;
-      background: radial-gradient(circle at center, rgba(0, 240, 255, 0.08) 0%, rgba(5, 7, 14, 0.98) 80%);
+      background: radial-gradient(circle at center, rgba(0, 240, 255, 0.1) 0%, rgba(5, 7, 14, 0.98) 75%);
       z-index: 900;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 24px;
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
+      padding: 20px;
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.3s ease;
+      transition: opacity 0.35s ease;
     }
     #plasma-overlay.active {
       opacity: 1;
       pointer-events: auto;
     }
 
-    .plasma-container {
-      width: 220px;
-      height: 220px;
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    /* HTML5 3D Plasma Sphere Canvas */
+    #plasma-canvas {
+      width: 280px;
+      height: 280px;
       cursor: pointer;
-    }
-
-    /* Giant Plasma Sphere Layers */
-    .plasma-core {
-      width: 110px;
-      height: 110px;
       border-radius: 50%;
-      background: radial-gradient(circle at 35% 35%, #ffffff 0%, var(--cyan) 45%, var(--blue) 80%, #001133 100%);
-      box-shadow: 0 0 50px var(--cyan), 0 0 100px rgba(0, 240, 255, 0.5), inset 0 0 25px #ffffff;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .plasma-ring-1 {
-      position: absolute;
-      inset: 0;
-      border-radius: 50%;
-      border: 2px dashed var(--cyan);
-      box-shadow: 0 0 20px var(--cyan);
-      animation: plasmaSpin 10s linear infinite;
-    }
-
-    .plasma-ring-2 {
-      position: absolute;
-      inset: -15px;
-      border-radius: 50%;
-      border: 1.5px solid rgba(0, 240, 255, 0.4);
-      border-top-color: var(--cyan);
-      border-bottom-color: var(--cyan);
-      animation: plasmaSpinRev 6s linear infinite;
-    }
-
-    .plasma-aura {
-      position: absolute;
-      inset: -35px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(0, 240, 255, 0.2) 0%, rgba(0, 82, 255, 0.05) 70%, transparent 100%);
-      filter: blur(12px);
-      transition: all 0.3s ease;
-    }
-
-    /* Plasma States */
-    .plasma-container.listening .plasma-core {
-      background: radial-gradient(circle at 35% 35%, #ffffff 0%, var(--red) 50%, #66001a 100%);
-      box-shadow: 0 0 70px var(--red), 0 0 120px rgba(255, 51, 102, 0.6), inset 0 0 25px #ffffff;
-      transform: scale(1.15);
-    }
-    .plasma-container.listening .plasma-aura {
-      background: rgba(255, 51, 102, 0.35);
-      animation: pulseWave 1s ease-out infinite;
-    }
-
-    .plasma-container.speaking .plasma-core {
-      animation: plasmaTalk 0.35s ease-in-out infinite alternate;
-      box-shadow: 0 0 90px var(--cyan), 0 0 40px #ffffff;
-    }
-    .plasma-container.speaking .plasma-ring-1 {
-      border-color: #ffffff;
-      animation: plasmaSpin 2.5s linear infinite;
     }
 
     .plasma-status-text {
@@ -129,24 +69,24 @@
       font-weight: 800;
       color: var(--cyan);
       letter-spacing: 2px;
-      margin-top: 32px;
+      margin-top: 20px;
       text-transform: uppercase;
-      text-shadow: 0 0 12px var(--cyan);
+      text-shadow: 0 0 14px var(--cyan);
       text-align: center;
     }
 
     .plasma-transcript-box {
-      margin-top: 16px;
-      max-width: 320px;
+      margin-top: 12px;
+      max-width: 340px;
       font-size: 15px;
       color: #e2e8f0;
       text-align: center;
       line-height: 1.5;
-      min-height: 48px;
+      min-height: 44px;
     }
 
     .close-plasma-btn {
-      margin-top: 32px;
+      margin-top: 24px;
       background: #0f172a;
       border: 1px solid var(--border);
       color: #94a3b8;
@@ -155,11 +95,6 @@
       font-size: 13px;
       cursor: pointer;
     }
-
-    @keyframes plasmaSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    @keyframes plasmaSpinRev { 0% { transform: rotate(0deg); } 100% { transform: rotate(-360deg); } }
-    @keyframes pulseWave { 0% { transform: scale(0.85); opacity: 0.9; } 100% { transform: scale(1.45); opacity: 0; } }
-    @keyframes plasmaTalk { 0% { transform: scale(0.95); filter: brightness(1); } 100% { transform: scale(1.22); filter: brightness(1.5); } }
 
     /* Main Chat Layout */
     #chat-box { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; scroll-behavior: smooth; }
@@ -188,7 +123,7 @@
     .btn:active { transform: scale(0.92); }
     
     .btn-file { background: #0f172a; border: 1px solid var(--border); color: #94a3b8; }
-    .btn-mic { background: #0f172a; border: 1px solid var(--cyan); color: var(--cyan); box-shadow: 0 0 10px rgba(0, 240, 255, 0.3); }
+    .btn-mic { background: #0f172a; border: 1px solid var(--cyan); color: var(--cyan); box-shadow: 0 0 12px rgba(0, 240, 255, 0.4); }
     .btn-send { background: var(--cyan); color: #05070e; font-weight: bold; }
   </style>
 </head>
@@ -197,12 +132,6 @@
   <!-- Overlay de Login Privado -->
   <div id="login-overlay">
     <div class="login-box">
-      <div class="plasma-container" style="width: 100px; height: 100px; margin: 0 auto 16px;">
-        <div class="plasma-aura"></div>
-        <div class="plasma-ring-1"></div>
-        <div class="plasma-ring-2"></div>
-        <div class="plasma-core" style="width: 50px; height: 50px;"></div>
-      </div>
       <div class="login-title">J.A.R.V.I.S.</div>
       <div class="login-sub">Acceso restringido para el usuario</div>
       <input type="password" id="pin-code" class="pin-input" placeholder="••••" maxlength="10" onkeypress="if(event.key==='Enter') submitPin()">
@@ -211,16 +140,11 @@
     </div>
   </div>
 
-  <!-- Immersive Full Screen Modern Plasma Orb Interface -->
+  <!-- Immersive Full Screen 3D Plasma Sphere Interface -->
   <div id="plasma-overlay">
-    <div id="plasma-orb" class="plasma-container" onclick="toggleVoiceSession()">
-      <div class="plasma-aura"></div>
-      <div class="plasma-ring-1"></div>
-      <div class="plasma-ring-2"></div>
-      <div class="plasma-core"></div>
-    </div>
-    <div id="plasma-status" class="plasma-status-text">ESCUCHANDO... HABLA AHORA</div>
-    <div id="plasma-transcript" class="plasma-transcript-box">Di una orden por voz a JARVIS...</div>
+    <canvas id="plasma-canvas" width="280" height="280" onclick="toggleVoiceSession()"></canvas>
+    <div id="plasma-status" class="plasma-status-text">JARVIS ESCUCHANDO... HABLA AHORA</div>
+    <div id="plasma-transcript" class="plasma-transcript-box">Di una orden por voz...</div>
     <button class="close-plasma-btn" onclick="closePlasmaOverlay()">▲ CERRAR INTERFAZ DE VOZ</button>
   </div>
 
@@ -237,7 +161,7 @@
   <div id="chat-box">
     <div class="msg jarvis">
       <span class="sender">🤖 J.A.R.V.I.S.</span>
-      En línea y a su servicio, señor. Presiona el micrófono o habla directamente para activar la esfera de plasma interactiva.
+      En línea y a su servicio, señor. Presiona el micrófono para desplegar la esfera de plasma interactiva.
       <span class="time" id="start-time"></span>
     </div>
   </div>
@@ -266,11 +190,78 @@
     const loginOverlay = document.getElementById('login-overlay');
 
     const plasmaOverlay = document.getElementById('plasma-overlay');
-    const plasmaOrb = document.getElementById('plasma-orb');
+    const plasmaCanvas = document.getElementById('plasma-canvas');
     const plasmaStatus = document.getElementById('plasma-status');
     const plasmaTranscript = document.getElementById('plasma-transcript');
+    const ctx = plasmaCanvas.getContext('2d');
 
     document.getElementById('start-time').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // Plasma Canvas Renderer
+    let plasmaMode = 'idle'; // 'idle', 'listening', 'speaking'
+    let plasmaParticles = [];
+    for (let i = 0; i < 40; i++) {
+      plasmaParticles.push({
+        angle: Math.random() * Math.PI * 2,
+        radius: 30 + Math.random() * 60,
+        speed: 0.02 + Math.random() * 0.04,
+        size: 2 + Math.random() * 4,
+        color: Math.random() > 0.5 ? '#00f0ff' : '#0052ff'
+      });
+    }
+
+    function renderPlasma() {
+      ctx.clearRect(0, 0, plasmaCanvas.width, plasmaCanvas.height);
+      const cx = plasmaCanvas.width / 2;
+      const cy = plasmaCanvas.height / 2;
+
+      // Outer Glowing Aura
+      const auraGrad = ctx.createRadialGradient(cx, cy, 20, cx, cy, 130);
+      let coreColor = '#00f0ff';
+      if (plasmaMode === 'listening') coreColor = '#ff3366';
+      if (plasmaMode === 'speaking') coreColor = '#00ffff';
+
+      auraGrad.addColorStop(0, coreColor);
+      auraGrad.addColorStop(0.5, 'rgba(0, 82, 255, 0.4)');
+      auraGrad.addColorStop(1, 'transparent');
+      ctx.fillStyle = auraGrad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 130, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Swirling Plasma Arcs
+      plasmaParticles.forEach(p => {
+        p.angle += (plasmaMode === 'speaking' ? p.speed * 2.5 : p.speed);
+        const x = cx + Math.cos(p.angle) * p.radius;
+        const y = cy + Math.sin(p.angle) * p.radius;
+
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(x, y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Connecting electric arcs
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.25)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+      });
+
+      // Electric Center Core
+      const coreGrad = ctx.createRadialGradient(cx - 10, cy - 10, 5, cx, cy, 55);
+      coreGrad.addColorStop(0, '#ffffff');
+      coreGrad.addColorStop(0.4, coreColor);
+      coreGrad.addColorStop(1, '#001133');
+      ctx.fillStyle = coreGrad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 55, 0, Math.PI * 2);
+      ctx.fill();
+
+      requestAnimationFrame(renderPlasma);
+    }
+    renderPlasma();
 
     // Desbloqueo de Audio Safari / Chrome
     let audioUnlocked = false;
@@ -349,6 +340,7 @@
       if (!textOverride) textInput.value = '';
 
       addMsg('user', text);
+      plasmaMode = 'idle';
       plasmaStatus.innerText = 'PROCESANDO ORDEN...';
       plasmaTranscript.innerText = `"${text}"`;
 
@@ -368,11 +360,11 @@
           speakJARVIS(data.message.content);
         } else {
           addMsg('assistant', '⚠️ Error: ' + (data.error || 'Respuesta no válida'));
-          plasmaStatus.innerText = 'TOCA PARA HABLAR';
+          plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR';
         }
       } catch (err) {
         addMsg('assistant', '❌ Error al conectar con JARVIS.');
-        plasmaStatus.innerText = 'TOCA PARA HABLAR';
+        plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR';
       }
     }
 
@@ -384,6 +376,7 @@
       reader.onload = async () => {
         const base64 = reader.result.split(',')[1];
         addMsg('user', `📎 Archivo adjunto: ${file.name}`, '', base64);
+        plasmaStatus.innerText = 'ANALIZANDO IMAGEN...';
         
         try {
           const res = await fetch('/api/analyze-image', {
@@ -395,17 +388,20 @@
           if (data.success) {
             addMsg('assistant', data.message.content, data.modelUsed);
             speakJARVIS(data.message.content);
+          } else {
+            addMsg('assistant', '❌ No se pudo analizar la imagen.');
+            plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR';
           }
         } catch (err) {
-          addMsg('assistant', '❌ No se pudo analizar el archivo.');
+          addMsg('assistant', '❌ Error en análisis de imagen.');
+          plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR';
         }
       };
       reader.readAsDataURL(file);
     }
 
-    // Doble motor de síntesis de voz (ElevenLabs + Síntesis Nativa de Navegador)
     function speakJARVIS(text) {
-      plasmaOrb.className = 'plasma-container speaking';
+      plasmaMode = 'speaking';
       plasmaStatus.innerText = 'J.A.R.V.I.S. RESPONDIENDO...';
       plasmaTranscript.innerText = text;
 
@@ -419,7 +415,7 @@
         if (data.success && data.audioBase64) {
           const audio = new Audio(`data:audio/mpeg;base64,${data.audioBase64}`);
           audio.onended = () => {
-            plasmaOrb.className = 'plasma-container';
+            plasmaMode = 'idle';
             plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR';
           };
           audio.play().catch(e => speakNative(text));
@@ -437,22 +433,22 @@
         utterance.lang = 'es-ES';
         utterance.rate = 1.05;
         utterance.onend = () => {
-          plasmaOrb.className = 'plasma-container';
+          plasmaMode = 'idle';
           plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR';
         };
         window.speechSynthesis.speak(utterance);
       } else {
-        plasmaOrb.className = 'plasma-container';
+        plasmaMode = 'idle';
         plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR';
       }
     }
 
-    // Doble motor de reconocimiento de voz (Web Speech API + Grabación MediaRecorder STT)
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition = null;
     let mediaRecorder = null;
     let audioChunks = [];
     let isListening = false;
+    let sttTimeout = null;
 
     if (SpeechRecognition) {
       recognition = new SpeechRecognition();
@@ -496,7 +492,7 @@
 
     function startVoiceSession() {
       isListening = true;
-      plasmaOrb.className = 'plasma-container listening';
+      plasmaMode = 'listening';
       plasmaStatus.innerText = 'JARVIS ESCUCHANDO... HABLA AHORA';
       plasmaTranscript.innerText = 'Escuchando tu voz...';
 
@@ -511,8 +507,7 @@
 
     function stopVoiceSession() {
       isListening = false;
-      plasmaOrb.className = 'plasma-container';
-      plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR';
+      plasmaMode = 'idle';
       if (recognition) {
         try { recognition.stop(); } catch (e) {}
       }
@@ -524,28 +519,46 @@
     async function startMediaRecorderFallback() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
+        const options = MediaRecorder.isTypeSupported('audio/webm') ? { mimeType: 'audio/webm' } : {};
+        mediaRecorder = new MediaRecorder(stream, options);
         audioChunks = [];
 
-        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
         mediaRecorder.onstop = async () => {
-          const blob = new Blob(audioChunks, { type: 'audio/m4a' });
+          if (audioChunks.length === 0) {
+            plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR';
+            return;
+          }
+
+          const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
           const reader = new FileReader();
           reader.readAsDataURL(blob);
           reader.onloadend = async () => {
             const base64 = reader.result.split(',')[1];
             plasmaStatus.innerText = 'PROCESANDO TRANSCRIPCIÓN...';
+            
+            sttTimeout = setTimeout(() => {
+              plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR';
+            }, 7000);
+
             try {
               const sttRes = await fetch('/api/stt', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${AUTH_TOKEN}` },
-                body: JSON.stringify({ audioBase64: base64 })
+                body: JSON.stringify({ audioBase64: base64, mimeType: mediaRecorder.mimeType })
               });
+              clearTimeout(sttTimeout);
               const sttData = await sttRes.json();
               if (sttData.success && sttData.text) {
                 sendMsg(sttData.text);
+              } else {
+                plasmaStatus.innerText = 'NO SE DETECTÓ VOZ CLARA';
+                setTimeout(() => plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR', 2000);
               }
-            } catch (err) {}
+            } catch (err) {
+              clearTimeout(sttTimeout);
+              plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR';
+            }
           };
         };
         mediaRecorder.start();

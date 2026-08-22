@@ -222,7 +222,7 @@ app.post('/api/chat', async (req, res) => {
     return res.status(400).json({ error: 'Missing messages' });
   }
 
-  // 0. Si hay una imagen incluida, enrutar automáticamente al modelo de Visión
+  // 0. Si hay una imagen incluida, enrutar a modelos de Visión con fallback seguro
   const hasImage = imageBase64 || messages.some((m: any) => Array.isArray(m.content) && m.content.some((c: any) => c.type === 'image_url'));
   if (hasImage) {
     const textPrompt = typeof messages[messages.length - 1]?.content === 'string' 
@@ -231,37 +231,38 @@ app.post('/api/chat', async (req, res) => {
 
     const imgData = imageBase64 || messages.find((m: any) => Array.isArray(m.content))?.content?.find((c: any) => c.type === 'image_url')?.image_url?.url?.split(',')[1];
 
-    try {
-      const groqVisionRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${GROQ_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'llama-3.2-11b-vision-preview',
-          messages: [
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: textPrompt },
-                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imgData}` } },
-              ],
-            },
-          ],
-        }),
-      });
-
-      const data = await groqVisionRes.json();
-      if (groqVisionRes.ok && data.choices?.[0]?.message?.content) {
-        return res.json({
-          success: true,
-          modelUsed: 'Groq Vision Llama-3.2',
-          message: { role: 'assistant', content: data.choices[0].message.content },
+    if (imgData) {
+      // 1. Probar Groq Vision 11B
+      try {
+        const visionRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'llama-3.2-11b-vision-preview',
+            messages: [{ role: 'user', content: [{ type: 'text', text: textPrompt }, { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imgData}` } }] }],
+          }),
         });
-      }
-    } catch (e: any) {
-      console.log('Error en análisis de visión:', e.message);
+        const data = await visionRes.json();
+        if (visionRes.ok && data.choices?.[0]?.message?.content) {
+          return res.json({ success: true, modelUsed: 'Groq Vision Llama-3.2', message: { role: 'assistant', content: data.choices[0].message.content } });
+        }
+      } catch (e) {}
+
+      // 2. Probar Groq Vision 90B
+      try {
+        const visionRes90 = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'llama-3.2-90b-vision-preview',
+            messages: [{ role: 'user', content: [{ type: 'text', text: textPrompt }, { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imgData}` } }] }],
+          }),
+        });
+        const data90 = await visionRes90.json();
+        if (visionRes90.ok && data90.choices?.[0]?.message?.content) {
+          return res.json({ success: true, modelUsed: 'Groq Vision 90B', message: { role: 'assistant', content: data90.choices[0].message.content } });
+        }
+      } catch (e) {}
     }
   }
 
@@ -403,13 +404,14 @@ app.post('/api/analyze-image', async (req, res) => {
 
 // Transcripción de voz con Groq Whisper
 app.post('/api/stt', async (req, res) => {
-  const { audioBase64 } = req.body;
+  const { audioBase64, mimeType } = req.body;
   if (!audioBase64) return res.status(400).json({ error: 'Falta el audio' });
 
   try {
     const buffer = Buffer.from(audioBase64, 'base64');
+    const ext = mimeType?.includes('webm') ? 'webm' : mimeType?.includes('wav') ? 'wav' : 'm4a';
     const formData = new FormData();
-    formData.append('file', buffer, { filename: 'audio.m4a', contentType: 'audio/m4a' });
+    formData.append('file', buffer, { filename: `audio.${ext}`, contentType: mimeType || 'audio/m4a' });
     formData.append('model', 'whisper-large-v3');
     formData.append('language', 'es');
 
