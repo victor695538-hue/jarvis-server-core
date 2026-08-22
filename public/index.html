@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#05070e">
-  <title>J.A.R.V.I.S. Personal AI</title>
+  <title>J.A.R.V.I.S. Core AI</title>
   <style>
     :root {
       --cyan: #00f0ff;
@@ -278,6 +278,8 @@
     const fsCtx = fullscreenCanvas.getContext('2d');
     const vmBadge = document.getElementById('vm-badge');
     const vmTranscript = document.getElementById('vm-transcript');
+
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
     document.getElementById('start-time').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -582,7 +584,11 @@
     let wakeWordRecognition = null;
 
     function initWakeWordEngine() {
-      if (!SpeechRecognition) return;
+      if (!SpeechRecognition || isIOS) {
+        // En iOS Safari, activar reconocedor directo por toque/MediaRecorder sin corte
+        console.log('📱 Dispositivo iOS o sin WebSpeech continuo detectado.');
+        return;
+      }
 
       wakeWordRecognition = new SpeechRecognition();
       wakeWordRecognition.lang = 'es-ES';
@@ -593,20 +599,24 @@
         if (jarvisState === 'speaking' || jarvisState === 'thinking') return;
 
         let fullTranscript = '';
+        let isFinalSentence = false;
         for (let i = event.resultIndex; i < event.results.length; i++) {
           fullTranscript += event.results[i][0].transcript;
+          if (event.results[i].isFinal) isFinalSentence = true;
         }
 
         const lower = fullTranscript.toLowerCase();
         if (/jarvis|yarvis|harvis|oye jarvis|hola jarvis|hey jarvis/i.test(lower)) {
           const commandAfterWake = fullTranscript.replace(/.*(jarvis|yarvis|harvis|oye jarvis|hola jarvis|hey jarvis)\s*/i, '').trim();
 
-          try { wakeWordRecognition.stop(); } catch (e) {}
-          unlockAudio();
-
-          if (commandAfterWake.length > 2) {
+          // Esperar frase completa si aún está hablando
+          if (commandAfterWake.length > 3 && isFinalSentence) {
+            try { wakeWordRecognition.stop(); } catch (e) {}
+            unlockAudio();
             sendMsg(commandAfterWake);
-          } else {
+          } else if (commandAfterWake.length === 0) {
+            try { wakeWordRecognition.stop(); } catch (e) {}
+            unlockAudio();
             setState('listening', '¿Sí, señor? Escuchando su orden...');
             speakJARVIS('¿Sí, señor?');
             setTimeout(() => startVoiceSession(), 1200);
@@ -627,7 +637,7 @@
     }
 
     function restartWakeWordEngine() {
-      if (wakeWordRecognition) {
+      if (wakeWordRecognition && !isIOS) {
         try { wakeWordRecognition.start(); } catch (e) {}
       }
     }
@@ -675,7 +685,7 @@
       setState('listening', 'JARVIS escuchando... Habla ahora');
       mainMicBtn.className = 'btn btn-mic listening';
 
-      if (SpeechRecognition) {
+      if (SpeechRecognition && !isIOS) {
         activeRecognition = new SpeechRecognition();
         activeRecognition.lang = 'es-ES';
         activeRecognition.continuous = true;
