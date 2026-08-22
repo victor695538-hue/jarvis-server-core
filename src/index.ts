@@ -277,6 +277,16 @@ app.post('/api/chat', async (req, res) => {
     });
   }
 
+  // Sanitizar mensajes para que modelos de solo texto reciban siempre cadenas limpias
+  const sanitizedMessages = messages.map((m: any) => {
+    if (typeof m.content === 'string') return { role: m.role, content: m.content };
+    if (Array.isArray(m.content)) {
+      const textPart = m.content.find((c: any) => c.type === 'text')?.text || 'Detalla lo que ves en esta imagen';
+      return { role: m.role, content: textPart };
+    }
+    return { role: m.role, content: String(m.content || '') };
+  });
+
   const systemMessage = {
     role: 'system',
     content: 'Eres J.A.R.V.I.S., una inteligencia artificial personal de élite. Hablas en español, eres elegante, preciso y leal a tu señor. Respondes de forma concisa pero inteligente.',
@@ -294,7 +304,7 @@ app.post('/api/chat', async (req, res) => {
       },
       body: JSON.stringify({
         model: targetModel,
-        messages: [systemMessage, ...messages],
+        messages: [systemMessage, ...sanitizedMessages],
       }),
     });
 
@@ -322,7 +332,7 @@ app.post('/api/chat', async (req, res) => {
       },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
-        messages: [systemMessage, ...messages],
+        messages: [systemMessage, ...sanitizedMessages],
       }),
     });
 
