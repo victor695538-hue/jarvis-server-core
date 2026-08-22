@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#05070e">
-  <title>J.A.R.V.I.S. Core AI</title>
+  <title>J.A.R.V.I.S. Personal AI</title>
   <style>
     :root {
       --cyan: #00f0ff;
@@ -36,22 +36,24 @@
     h1 { font-size: 17px; font-weight: 800; color: var(--cyan); letter-spacing: 2px; text-transform: uppercase; }
     .status-text { font-size: 11px; color: #64748b; margin-top: 1px; }
 
+    .wake-badge { font-size: 10px; font-weight: 800; color: var(--green); background: rgba(16, 185, 129, 0.15); border: 1px solid var(--green); padding: 4px 10px; border-radius: 12px; letter-spacing: 1px; display: flex; align-items: center; gap: 4px; }
+
     /* JARVIS CORE Central Visualizer Panel */
     .core-panel {
       background: radial-gradient(circle at center, rgba(0, 240, 255, 0.06) 0%, rgba(5, 7, 14, 0.95) 75%);
       border-bottom: 1px solid var(--border);
-      padding: 20px 16px;
+      padding: 18px 16px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       position: relative;
-      gap: 12px;
+      gap: 10px;
     }
 
     #core-canvas {
-      width: 220px;
-      height: 220px;
+      width: 210px;
+      height: 210px;
       cursor: pointer;
       border-radius: 50%;
       transition: transform 0.2s;
@@ -86,7 +88,7 @@
       font-size: 14px;
       color: #94a3b8;
       text-align: center;
-      max-width: 400px;
+      max-width: 420px;
       min-height: 24px;
       line-height: 1.4;
       font-style: italic;
@@ -115,8 +117,8 @@
     }
 
     #fullscreen-canvas {
-      width: 280px;
-      height: 280px;
+      width: 270px;
+      height: 270px;
       cursor: pointer;
       border-radius: 50%;
     }
@@ -204,7 +206,7 @@
 
   <!-- Dedicated Fullscreen JARVIS Voice Mode Overlay -->
   <div id="voice-mode-overlay">
-    <canvas id="fullscreen-canvas" width="280" height="280" onclick="handleCoreClick()"></canvas>
+    <canvas id="fullscreen-canvas" width="270" height="270" onclick="handleCoreClick()"></canvas>
     <div id="vm-badge" class="state-badge idle">IDLE</div>
     <div id="vm-transcript" class="vm-transcript">Di "JARVIS" o habla para iniciar...</div>
     <div class="vm-controls">
@@ -220,25 +222,29 @@
         <div id="pc-status" class="status-text">Verificando estado...</div>
       </div>
     </div>
-    <button class="btn btn-mic" style="width: 36px; height: 36px; font-size: 16px;" onclick="openVoiceMode()">🎙️</button>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <div class="wake-badge">🎙️ "JARVIS" WAKE</div>
+      <button class="btn btn-mic" style="width: 36px; height: 36px; font-size: 16px;" onclick="openVoiceMode()">🎙️</button>
+    </div>
   </header>
 
   <!-- Central JARVIS CORE Panel -->
   <div class="core-panel">
-    <canvas id="core-canvas" width="220" height="220" onclick="handleCoreClick()"></canvas>
+    <canvas id="core-canvas" width="210" height="210" onclick="handleCoreClick()"></canvas>
     <div id="core-badge" class="state-badge idle">IDLE</div>
-    <div id="live-transcript" class="live-transcript">Presiona el núcleo o el micrófono para hablar con JARVIS...</div>
+    <div id="live-transcript" class="live-transcript">Di "JARVIS..." o presiona el núcleo para activar órdenes por voz...</div>
   </div>
 
   <div id="chat-box">
     <div class="msg jarvis">
       <span class="sender">🤖 J.A.R.V.I.S.</span>
-      En línea y a su servicio, señor. Modo de conversación bidireccional activado para iPhone y PC.
+      En línea y a su servicio, señor. Escucha pasiva manos libres activada: di "JARVIS" seguido de tu orden en cualquier momento.
       <span class="time" id="start-time"></span>
     </div>
   </div>
 
   <div class="quick-bar">
+    <div class="chip" onclick="quickAction('getWeather')">🌤️ Tiempo Hoy</div>
     <div class="chip" onclick="quickAction('takeScreenshot')">📸 Captura PC</div>
     <div class="chip" onclick="quickAction('listProcesses')">📋 Programas PC</div>
     <div class="chip" onclick="quickAction('generateImage')">🎨 Generar Imagen</div>
@@ -275,7 +281,6 @@
 
     document.getElementById('start-time').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // ESTADOS DE JARVIS CORE: 'idle', 'listening', 'thinking', 'speaking', 'executing'
     let jarvisState = 'idle';
     let currentAudio = null;
     let messageHistory = [];
@@ -319,7 +324,6 @@
       if (jarvisState === 'speaking') primaryColor = '#00ffff';
       if (jarvisState === 'executing') primaryColor = '#10b981';
 
-      // Outer Glow Aura
       const auraGrad = ctx.createRadialGradient(cx, cy, 15, cx, cy, size * 0.48);
       auraGrad.addColorStop(0, primaryColor);
       auraGrad.addColorStop(0.5, 'rgba(0, 82, 255, 0.35)');
@@ -329,15 +333,14 @@
       ctx.arc(cx, cy, size * 0.48, 0, Math.PI * 2);
       ctx.fill();
 
-      // Swirling Energy Particles
       particles.forEach(p => {
         let currentSpeed = p.speed;
         if (jarvisState === 'thinking') currentSpeed *= 3;
         if (jarvisState === 'speaking') currentSpeed *= 2;
 
         p.angle += currentSpeed;
-        const x = cx + Math.cos(p.angle) * (p.radius * (size / 220));
-        const y = cy + Math.sin(p.angle) * (p.radius * (size / 220));
+        const x = cx + Math.cos(p.angle) * (p.radius * (size / 210));
+        const y = cy + Math.sin(p.angle) * (p.radius * (size / 210));
 
         ctx.fillStyle = jarvisState === 'listening' ? '#ff3366' : p.color;
         ctx.beginPath();
@@ -352,20 +355,19 @@
         ctx.stroke();
       });
 
-      // Core Spherical Nucleus
-      const coreGrad = ctx.createRadialGradient(cx - 8, cy - 8, 4, cx, cy, 45 * (size / 220));
+      const coreGrad = ctx.createRadialGradient(cx - 8, cy - 8, 4, cx, cy, 42 * (size / 210));
       coreGrad.addColorStop(0, '#ffffff');
       coreGrad.addColorStop(0.4, primaryColor);
       coreGrad.addColorStop(1, '#001133');
       ctx.fillStyle = coreGrad;
       ctx.beginPath();
-      ctx.arc(cx, cy, 45 * (size / 220), 0, Math.PI * 2);
+      ctx.arc(cx, cy, 42 * (size / 210), 0, Math.PI * 2);
       ctx.fill();
     }
 
     function animLoop() {
-      renderCanvas(coreCanvas, coreCtx, 220);
-      renderCanvas(fullscreenCanvas, fsCtx, 280);
+      renderCanvas(coreCanvas, coreCtx, 210);
+      renderCanvas(fullscreenCanvas, fsCtx, 270);
       requestAnimationFrame(animLoop);
     }
     animLoop();
@@ -396,6 +398,7 @@
           AUTH_TOKEN = data.token;
           localStorage.setItem('jarvis_token', AUTH_TOKEN);
           loginOverlay.style.display = 'none';
+          initWakeWordEngine();
         } else {
           document.getElementById('pin-error').style.display = 'block';
         }
@@ -406,6 +409,7 @@
     }
     if (localStorage.getItem('jarvis_token')) {
       loginOverlay.style.display = 'none';
+      setTimeout(initWakeWordEngine, 1000);
     }
 
     async function checkHealth() {
@@ -444,7 +448,6 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // Interrupción activa de la voz de JARVIS
     function interruptJARVIS() {
       if (currentAudio) {
         currentAudio.pause();
@@ -492,11 +495,11 @@
           speakJARVIS(data.message.content);
         } else {
           addMsg('assistant', '⚠️ Error: ' + (data.error || 'Respuesta no válida'));
-          setState('idle', 'Toca el núcleo para hablar con JARVIS');
+          setState('idle', 'Di "JARVIS..." para activar el asistente');
         }
       } catch (err) {
         addMsg('assistant', '❌ Error al conectar con JARVIS.');
-        setState('idle', 'Toca el núcleo para hablar con JARVIS');
+        setState('idle', 'Di "JARVIS..." para activar el asistente');
       }
     }
 
@@ -522,17 +525,16 @@
             speakJARVIS(data.message.content);
           } else {
             addMsg('assistant', '❌ No se pudo analizar la imagen.');
-            setState('idle', 'Toca el núcleo para hablar');
+            setState('idle', 'Di "JARVIS..." para activar');
           }
         } catch (err) {
           addMsg('assistant', '❌ Error en análisis de imagen.');
-          setState('idle', 'Toca el núcleo para hablar');
+          setState('idle', 'Di "JARVIS..." para activar');
         }
       };
       reader.readAsDataURL(file);
     }
 
-    // Doble motor TTS con fallback nativo instantáneo
     function speakJARVIS(text) {
       setState('speaking', text);
 
@@ -547,7 +549,8 @@
           currentAudio = new Audio(`data:audio/mpeg;base64,${data.audioBase64}`);
           currentAudio.onended = () => {
             currentAudio = null;
-            setState('idle', 'Toca el núcleo para hablar con JARVIS');
+            setState('idle', 'Di "JARVIS..." para activar el asistente');
+            restartWakeWordEngine();
           };
           currentAudio.play().catch(e => speakNative(text));
         } else {
@@ -564,58 +567,78 @@
         utterance.lang = 'es-ES';
         utterance.rate = 1.05;
         utterance.onend = () => {
-          setState('idle', 'Toca el núcleo para hablar con JARVIS');
+          setState('idle', 'Di "JARVIS..." para activar el asistente');
+          restartWakeWordEngine();
         };
         window.speechSynthesis.speak(utterance);
       } else {
-        setState('idle', 'Toca el núcleo para hablar con JARVIS');
+        setState('idle', 'Di "JARVIS..." para activar el asistente');
+        restartWakeWordEngine();
       }
     }
 
-    // Reconocimiento de voz nativo + Fallback MediaRecorder con Timeslice
+    // Motor de Escucha Pasiva Manos Libres ("JARVIS" Wake Word)
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition = null;
+    let wakeWordRecognition = null;
+
+    function initWakeWordEngine() {
+      if (!SpeechRecognition) return;
+
+      wakeWordRecognition = new SpeechRecognition();
+      wakeWordRecognition.lang = 'es-ES';
+      wakeWordRecognition.continuous = true;
+      wakeWordRecognition.interimResults = true;
+
+      wakeWordRecognition.onresult = (event) => {
+        if (jarvisState === 'speaking' || jarvisState === 'thinking') return;
+
+        let fullTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          fullTranscript += event.results[i][0].transcript;
+        }
+
+        const lower = fullTranscript.toLowerCase();
+        if (/jarvis|yarvis|harvis|oye jarvis|hola jarvis|hey jarvis/i.test(lower)) {
+          const commandAfterWake = fullTranscript.replace(/.*(jarvis|yarvis|harvis|oye jarvis|hola jarvis|hey jarvis)\s*/i, '').trim();
+
+          try { wakeWordRecognition.stop(); } catch (e) {}
+          unlockAudio();
+
+          if (commandAfterWake.length > 2) {
+            sendMsg(commandAfterWake);
+          } else {
+            setState('listening', '¿Sí, señor? Escuchando su orden...');
+            speakNative('¿Sí, señor?');
+            setTimeout(() => startVoiceSession(), 1200);
+          }
+        }
+      };
+
+      wakeWordRecognition.onend = () => {
+        if (jarvisState === 'idle' && !isListening) {
+          try { wakeWordRecognition.start(); } catch (e) {}
+        }
+      };
+
+      try {
+        wakeWordRecognition.start();
+        console.log('⚡ Escucha pasiva manos libres "JARVIS" activada.');
+      } catch (e) {}
+    }
+
+    function restartWakeWordEngine() {
+      if (wakeWordRecognition) {
+        try { wakeWordRecognition.start(); } catch (e) {}
+      }
+    }
+
+    // Reconocimiento activo por voz & Fallback MediaRecorder
+    let activeRecognition = null;
     let mediaRecorder = null;
     let audioChunks = [];
     let isListening = false;
     let currentSpeechText = '';
     let silenceTimer = null;
-
-    if (SpeechRecognition) {
-      recognition = new SpeechRecognition();
-      recognition.lang = 'es-ES';
-      recognition.continuous = true;
-      recognition.interimResults = true;
-
-      recognition.onresult = (event) => {
-        let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
-        }
-        if (transcript.trim()) {
-          currentSpeechText = transcript.trim();
-          setState('listening', `"${currentSpeechText}"`);
-
-          clearTimeout(silenceTimer);
-          silenceTimer = setTimeout(() => {
-            if (isListening && currentSpeechText) {
-              stopVoiceSession();
-              sendMsg(currentSpeechText);
-            }
-          }, 1400);
-        }
-      };
-
-      recognition.onend = () => {
-        if (isListening && currentSpeechText) {
-          stopVoiceSession();
-          sendMsg(currentSpeechText);
-        }
-      };
-      recognition.onerror = () => {
-        startMediaRecorderFallback();
-      };
-    }
 
     function openVoiceMode() {
       unlockAudio();
@@ -643,14 +666,52 @@
         return;
       }
 
+      if (wakeWordRecognition) {
+        try { wakeWordRecognition.stop(); } catch (e) {}
+      }
+
       isListening = true;
       currentSpeechText = '';
       setState('listening', 'JARVIS escuchando... Habla ahora');
       mainMicBtn.className = 'btn btn-mic listening';
 
-      if (recognition) {
+      if (SpeechRecognition) {
+        activeRecognition = new SpeechRecognition();
+        activeRecognition.lang = 'es-ES';
+        activeRecognition.continuous = true;
+        activeRecognition.interimResults = true;
+
+        activeRecognition.onresult = (event) => {
+          let transcript = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript;
+          }
+          if (transcript.trim()) {
+            currentSpeechText = transcript.trim();
+            setState('listening', `"${currentSpeechText}"`);
+
+            clearTimeout(silenceTimer);
+            silenceTimer = setTimeout(() => {
+              if (isListening && currentSpeechText) {
+                stopVoiceSession();
+                sendMsg(currentSpeechText);
+              }
+            }, 1400);
+          }
+        };
+
+        activeRecognition.onend = () => {
+          if (isListening && currentSpeechText) {
+            stopVoiceSession();
+            sendMsg(currentSpeechText);
+          }
+        };
+        activeRecognition.onerror = () => {
+          startMediaRecorderFallback();
+        };
+
         try {
-          recognition.start();
+          activeRecognition.start();
           return;
         } catch (e) {}
       }
@@ -662,14 +723,15 @@
       clearTimeout(silenceTimer);
       mainMicBtn.className = 'btn btn-mic';
       if (jarvisState === 'listening') {
-        setState('idle', 'Toca el núcleo para hablar con JARVIS');
+        setState('idle', 'Di "JARVIS..." para activar el asistente');
       }
-      if (recognition) {
-        try { recognition.stop(); } catch (e) {}
+      if (activeRecognition) {
+        try { activeRecognition.stop(); } catch (e) {}
       }
       if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
       }
+      restartWakeWordEngine();
     }
 
     async function startMediaRecorderFallback() {
@@ -686,7 +748,7 @@
         mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
         mediaRecorder.onstop = async () => {
           if (audioChunks.length === 0) {
-            setState('idle', 'Toca el núcleo para hablar con JARVIS');
+            setState('idle', 'Di "JARVIS..." para activar');
             return;
           }
 
@@ -710,7 +772,7 @@
                 setState('idle', 'No se detectó voz clara');
               }
             } catch (err) {
-              setState('idle', 'Toca el núcleo para hablar con JARVIS');
+              setState('idle', 'Di "JARVIS..." para activar');
             }
           };
         };
@@ -734,7 +796,9 @@
 
     async function quickAction(type) {
       unlockAudio();
-      if (type === 'takeScreenshot') {
+      if (type === 'getWeather') {
+        sendMsg('¿Qué tiempo hace hoy?');
+      } else if (type === 'takeScreenshot') {
         addMsg('user', '📸 Capturar pantalla de PC');
         setState('thinking', 'Capturando pantalla del PC...');
         const res = await fetch('/api/pc/command', {
@@ -748,7 +812,7 @@
           speakJARVIS('He tomado la captura de pantalla de su PC, señor.');
         } else {
           addMsg('assistant', '❌ ' + (data.error || 'No se pudo realizar la captura.'));
-          setState('idle', 'Toca el núcleo para hablar');
+          setState('idle', 'Di "JARVIS..." para activar');
         }
       } else if (type === 'listProcesses') {
         addMsg('user', '📋 Ver programas abiertos en PC');

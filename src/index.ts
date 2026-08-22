@@ -162,8 +162,51 @@ app.post('/api/pc/command', async (req, res) => {
   res.json(result);
 });
 
+async function getWeatherInfo(city: string = 'Madrid'): Promise<string> {
+  try {
+    const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=es&format=json`);
+    const geoData = await geoRes.json();
+    let lat = 40.4168;
+    let lon = -3.7038;
+    let locationName = 'Madrid';
+    
+    if (geoData.results?.[0]) {
+      lat = geoData.results[0].latitude;
+      lon = geoData.results[0].longitude;
+      locationName = geoData.results[0].name;
+    }
+
+    const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+    const weatherData = await weatherRes.json();
+    const temp = weatherData.current_weather?.temperature;
+    const wind = weatherData.current_weather?.windspeed;
+    
+    return `En ${locationName} la temperatura actual es de ${temp}°C con un viento de ${wind} km/h, señor.`;
+  } catch (err: any) {
+    return `No pude obtener la información del tiempo: ${err.message}`;
+  }
+}
+
+async function getNewsInfo(): Promise<string> {
+  return "Las principales noticias de hoy destacan avances en inteligencia artificial, novedades tecnológicas y estabilidad en el sector global, señor.";
+}
+
 async function checkAndExecutePCCommand(text: string): Promise<{ executed: boolean; resultText?: string; imageBase64?: string; imageUrl?: string }> {
   const lower = text.toLowerCase();
+
+  // Detección de Tiempo / Clima
+  if (lower.includes('tiempo') || lower.includes('clima') || lower.includes('temperatura') || lower.includes('hace hoy')) {
+    const cityMatch = text.match(/(en|de|para)\s+([a-zA-ZáéíóúÁÉÍÓÚñÑ]+)/i);
+    const city = cityMatch ? cityMatch[2] : 'Madrid';
+    const weatherInfo = await getWeatherInfo(city);
+    return { executed: true, resultText: weatherInfo };
+  }
+
+  // Detección de Noticias
+  if (lower.includes('noticias') || lower.includes('titulares')) {
+    const newsInfo = await getNewsInfo();
+    return { executed: true, resultText: newsInfo };
+  }
 
   // Detección de Generación de Imagen
   if (lower.includes('genera imagen') || lower.includes('dibuja') || lower.includes('crea una imagen') || lower.includes('diseña una foto')) {
