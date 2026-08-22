@@ -38,7 +38,7 @@
     #plasma-overlay {
       position: fixed;
       inset: 0;
-      background: radial-gradient(circle at center, rgba(0, 240, 255, 0.1) 0%, rgba(5, 7, 14, 0.98) 75%);
+      background: radial-gradient(circle at center, rgba(0, 240, 255, 0.12) 0%, rgba(5, 7, 14, 0.98) 75%);
       z-index: 900;
       display: flex;
       flex-direction: column;
@@ -85,15 +85,26 @@
       min-height: 44px;
     }
 
-    .close-plasma-btn {
+    .plasma-actions {
+      display: flex;
+      gap: 12px;
       margin-top: 24px;
+    }
+
+    .action-btn {
       background: #0f172a;
       border: 1px solid var(--border);
-      color: #94a3b8;
-      padding: 10px 24px;
+      color: #e2e8f0;
+      padding: 10px 20px;
       border-radius: 20px;
       font-size: 13px;
+      font-weight: bold;
       cursor: pointer;
+    }
+    .action-btn.send-now {
+      background: var(--cyan);
+      color: #05070e;
+      border-color: var(--cyan);
     }
 
     /* Main Chat Layout */
@@ -145,7 +156,10 @@
     <canvas id="plasma-canvas" width="280" height="280" onclick="toggleVoiceSession()"></canvas>
     <div id="plasma-status" class="plasma-status-text">JARVIS ESCUCHANDO... HABLA AHORA</div>
     <div id="plasma-transcript" class="plasma-transcript-box">Di una orden por voz...</div>
-    <button class="close-plasma-btn" onclick="closePlasmaOverlay()">▲ CERRAR INTERFAZ DE VOZ</button>
+    <div class="plasma-actions">
+      <button class="action-btn send-now" onclick="forceSendVoice()">➤ ENVIAR ORDEN</button>
+      <button class="action-btn" onclick="closePlasmaOverlay()">▲ CERRAR</button>
+    </div>
   </div>
 
   <header>
@@ -161,7 +175,7 @@
   <div id="chat-box">
     <div class="msg jarvis">
       <span class="sender">🤖 J.A.R.V.I.S.</span>
-      En línea y a su servicio, señor. Presiona el micrófono para desplegar la esfera de plasma interactiva.
+      En línea y a su servicio, señor. Presiona el micrófono para hablar por voz con la esfera de plasma.
       <span class="time" id="start-time"></span>
     </div>
   </div>
@@ -215,7 +229,6 @@
       const cx = plasmaCanvas.width / 2;
       const cy = plasmaCanvas.height / 2;
 
-      // Outer Glowing Aura
       const auraGrad = ctx.createRadialGradient(cx, cy, 20, cx, cy, 130);
       let coreColor = '#00f0ff';
       if (plasmaMode === 'listening') coreColor = '#ff3366';
@@ -229,7 +242,6 @@
       ctx.arc(cx, cy, 130, 0, Math.PI * 2);
       ctx.fill();
 
-      // Swirling Plasma Arcs
       plasmaParticles.forEach(p => {
         p.angle += (plasmaMode === 'speaking' ? p.speed * 2.5 : p.speed);
         const x = cx + Math.cos(p.angle) * p.radius;
@@ -248,7 +260,6 @@
         ctx.stroke();
       });
 
-      // Electric Center Core
       const coreGrad = ctx.createRadialGradient(cx - 10, cy - 10, 5, cx, cy, 55);
       coreGrad.addColorStop(0, '#ffffff');
       coreGrad.addColorStop(0.4, coreColor);
@@ -442,29 +453,44 @@
       }
     }
 
+    // Sistema de Voz Garantizado con Auto-Enviado por Silencio
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition = null;
     let mediaRecorder = null;
     let audioChunks = [];
     let isListening = false;
+    let currentSpeechText = '';
+    let silenceTimer = null;
 
     if (SpeechRecognition) {
       recognition = new SpeechRecognition();
       recognition.lang = 'es-ES';
-      recognition.continuous = false;
+      recognition.continuous = true;
       recognition.interimResults = true;
 
       recognition.onresult = (event) => {
-        const transcript = Array.from(event.results).map(r => r[0].transcript).join('');
-        plasmaTranscript.innerText = `"${transcript}"`;
-        if (event.results[0].isFinal) {
-          stopVoiceSession();
-          sendMsg(transcript);
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        if (transcript.trim()) {
+          currentSpeechText = transcript.trim();
+          plasmaTranscript.innerText = `"${currentSpeechText}"`;
+
+          // Auto-enviar si deja de hablar durante 1.5 segundos
+          clearTimeout(silenceTimer);
+          silenceTimer = setTimeout(() => {
+            if (isListening && currentSpeechText) {
+              forceSendVoice();
+            }
+          }, 1500);
         }
       };
 
       recognition.onend = () => {
-        if (isListening) stopVoiceSession();
+        if (isListening && currentSpeechText) {
+          forceSendVoice();
+        }
       };
       recognition.onerror = () => {
         startMediaRecorderFallback();
@@ -490,6 +516,7 @@
 
     function startVoiceSession() {
       isListening = true;
+      currentSpeechText = '';
       plasmaMode = 'listening';
       plasmaStatus.innerText = 'JARVIS ESCUCHANDO... HABLA AHORA';
       plasmaTranscript.innerText = 'Escuchando tu voz...';
@@ -505,12 +532,23 @@
 
     function stopVoiceSession() {
       isListening = false;
+      clearTimeout(silenceTimer);
       plasmaMode = 'idle';
       if (recognition) {
         try { recognition.stop(); } catch (e) {}
       }
       if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
+      }
+    }
+
+    function forceSendVoice() {
+      const textToSend = currentSpeechText;
+      stopVoiceSession();
+      if (textToSend) {
+        sendMsg(textToSend);
+      } else {
+        plasmaStatus.innerText = 'NO SE DETECTÓ NINGÚN MENSAJE';
       }
     }
 
@@ -558,7 +596,7 @@
             }
           };
         };
-        mediaRecorder.start();
+        mediaRecorder.start(500); // Timeslice 500ms
       } catch (err) {
         plasmaStatus.innerText = 'MICRÓFONO NO DISPONIBLE O DENEGADO';
       }
