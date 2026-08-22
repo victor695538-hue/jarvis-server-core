@@ -19,7 +19,13 @@ const wss = new WebSocketServer({ server, path: '/ws/agent' });
 app.use(cors());
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
-app.use(express.static(path.join(__dirname, '../public')));
+const publicPath = path.resolve(__dirname, '../public');
+app.use(express.static(publicPath));
+
+// Servir la interfaz Web UI en la raíz /
+app.get('/', (req, res) => {
+  res.sendFile(path.join(publicPath, 'index.html'));
+});
 
 const JARVIS_AUTH_TOKEN = process.env.JARVIS_AUTH_TOKEN || 'jarvis_secret_token_2026';
 const JARVIS_PIN = process.env.JARVIS_PIN || '2026';
