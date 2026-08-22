@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#05070e">
+  <title>J.A.R.V.I.S. Personal AI</title>
+  <style>
+    :root {
+      --cyan: #00f0ff;
+      --blue: #0052ff;
+      --bg: #05070e;
+      --card-bg: #0b0f19;
+      --border: #1e293b;
+      --red: #ff3366;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background-color: var(--bg); color: #e2e8f0; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+    
+    /* Login Lock Screen */
+    #login-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+    .login-box { background: var(--card-bg); border: 1px solid var(--border); padding: 32px 24px; border-radius: 24px; width: 100%; max-width: 360px; text-align: center; box-shadow: 0 10px 30px rgba(0, 240, 255, 0.1); }
+    .login-title { font-size: 20px; font-weight: 800; color: var(--cyan); letter-spacing: 3px; margin-bottom: 8px; }
+    .login-sub { font-size: 12px; color: #64748b; margin-bottom: 24px; }
+    .pin-input { width: 100%; background: #0f172a; border: 1px solid var(--border); color: #fff; padding: 14px; border-radius: 16px; font-size: 20px; text-align: center; letter-spacing: 6px; outline: none; margin-bottom: 16px; }
+    .pin-input:focus { border-color: var(--cyan); }
+    .login-btn { width: 100%; background: var(--cyan); color: #05070e; border: none; padding: 14px; border-radius: 16px; font-size: 15px; font-weight: bold; cursor: pointer; }
+
+    header { background: var(--card-bg); border-bottom: 1px solid var(--border); padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; }
+    .header-left { display: flex; align-items: center; gap: 10px; }
+    
+    /* Glowing Arc Reactor Logo */
+    .arc-reactor { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--cyan); box-shadow: 0 0 12px var(--cyan), inset 0 0 8px var(--cyan); display: flex; align-items: center; justify-content: center; position: relative; }
+    .arc-inner { width: 14px; height: 14px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
+    .arc-reactor.offline { border-color: var(--red); box-shadow: 0 0 12px var(--red); }
+    .arc-reactor.offline .arc-inner { background: var(--red); box-shadow: 0 0 10px var(--red); }
+    
+    h1 { font-size: 17px; font-weight: 800; color: var(--cyan); letter-spacing: 2px; text-transform: uppercase; }
+    .status-text { font-size: 11px; color: #64748b; margin-top: 1px; }
+
+    #chat-box { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; scroll-behavior: smooth; }
+    
+    .msg { max-width: 85%; padding: 12px 16px; border-radius: 18px; font-size: 15px; line-height: 1.45; word-break: break-word; animation: fadeIn 0.2s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    
+    .msg.user { align-self: flex-end; background: var(--blue); color: #ffffff; border-bottom-right-radius: 4px; box-shadow: 0 4px 12px rgba(0, 82, 255, 0.3); }
+    .msg.jarvis { align-self: flex-start; background: #0f172a; border: 1px solid var(--border); color: #e2e8f0; border-bottom-left-radius: 4px; }
+    
+    .msg .sender { font-size: 10px; color: var(--cyan); font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; display: block; }
+    .msg .time { font-size: 9px; color: #64748b; margin-top: 6px; text-align: right; display: block; }
+    .msg img { max-width: 100%; border-radius: 10px; margin-top: 8px; border: 1px solid var(--border); }
+
+    .quick-bar { display: flex; gap: 8px; overflow-x: auto; padding: 8px 16px; background: var(--card-bg); border-top: 1px solid var(--border); -webkit-overflow-scrolling: touch; }
+    .quick-bar::-webkit-scrollbar { display: none; }
+    .chip { background: #0f172a; border: 1px solid var(--border); color: var(--cyan); padding: 8px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: all 0.15s; }
+    .chip:active { background: #1e293b; transform: scale(0.96); }
+
+    .input-bar { background: var(--card-bg); border-top: 1px solid var(--border); padding: 12px 16px; display: flex; align-items: center; gap: 8px; }
+    
+    input[type="text"] { flex: 1; background: #0f172a; border: 1px solid var(--border); color: #fff; padding: 12px 16px; border-radius: 24px; font-size: 15px; outline: none; transition: border-color 0.2s; }
+    input[type="text"]:focus { border-color: var(--cyan); }
+    
+    .btn { width: 44px; height: 44px; border-radius: 50%; border: none; outline: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; transition: transform 0.1s, background-color 0.2s; }
+    .btn:active { transform: scale(0.92); }
+    
+    .btn-file { background: #0f172a; border: 1px solid var(--border); color: #94a3b8; }
+    .btn-mic { background: #0f172a; border: 1px solid var(--cyan); color: var(--cyan); }
+    .btn-mic.listening { background: var(--red); border-color: var(--red); color: #fff; animation: pulse 1.2s infinite; }
+    
+    .btn-send { background: var(--cyan); color: #05070e; font-weight: bold; }
+    
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(255, 51, 102, 0.7); }
+      70% { box-shadow: 0 0 0 12px rgba(255, 51, 102, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 51, 102, 0); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Overlay de Login Privado -->
+  <div id="login-overlay">
+    <div class="login-box">
+      <div class="arc-reactor" style="margin: 0 auto 16px; width: 48px; height: 48px;">
+        <div class="arc-inner" style="width: 20px; height: 20px;"></div>
+      </div>
+      <div class="login-title">J.A.R.V.I.S.</div>
+      <div class="login-sub">Acceso restringido para el usuario</div>
+      <input type="password" id="pin-code" class="pin-input" placeholder="••••" maxlength="10" onkeypress="if(event.key==='Enter') submitPin()">
+      <button class="login-btn" onclick="submitPin()">DESBLOQUEAR</button>
+      <div id="pin-error" style="color: var(--red); font-size: 11px; margin-top: 12px; display: none;">PIN incorrecto</div>
+    </div>
+  </div>
+
+  <header>
+    <div class="header-left">
+      <div id="arc-logo" class="arc-reactor">
+        <div class="arc-inner"></div>
+      </div>
+      <div>
+        <h1>J.A.R.V.I.S.</h1>
+        <div id="pc-status" class="status-text">Verificando estado...</div>
+      </div>
+    </div>
+    <div style="font-size: 11px; color: var(--cyan); font-weight: bold; letter-spacing: 1px;">WEB & iPHONE 15</div>
+  </header>
+
+  <div id="chat-box">
+    <div class="msg jarvis">
+      <span class="sender">🤖 J.A.R.V.I.S.</span>
+      En línea y a su servicio, señor. Puedes hablarme o escribirme tanto desde tu iPhone 15 como desde tu ordenador.
+      <span class="time" id="start-time"></span>
+    </div>
+  </div>
+
+  <div class="quick-bar">
+    <div class="chip" onclick="quickAction('takeScreenshot')">📸 Captura PC</div>
+    <div class="chip" onclick="quickAction('listProcesses')">📋 Programas PC</div>
+    <div class="chip" onclick="quickAction('generateImage')">🎨 Generar Imagen</div>
+    <div class="chip" onclick="quickAction('openSpotify')">🎵 Abrir Spotify</div>
+    <div class="chip" onclick="quickAction('wakePC')">⚡ Encender PC</div>
+  </div>
+
+  <div class="input-bar">
+    <input type="file" id="file-input" accept="image/*,.pdf,.txt" style="display: none;" onchange="handleFileUpload(event)">
+    <button class="btn btn-file" onclick="document.getElementById('file-input').click()">📷</button>
+    <button id="mic-btn" class="btn btn-mic" onclick="toggleVoice()">🎙️</button>
+    <input type="text" id="text-input" placeholder="Háblale o escríbele a JARVIS..." onkeypress="if(event.key==='Enter') sendMsg()">
+    <button class="btn btn-send" onclick="sendMsg()">➤</button>
+  </div>
+
+  <script>
+    let AUTH_TOKEN = localStorage.getItem('jarvis_token') || 'jarvis_secret_token_2026';
+    const chatBox = document.getElementById('chat-box');
+    const textInput = document.getElementById('text-input');
+    const micBtn = document.getElementById('mic-btn');
+    const arcLogo = document.getElementById('arc-logo');
+    const pcStatus = document.getElementById('pc-status');
+    const loginOverlay = document.getElementById('login-overlay');
+
+    document.getElementById('start-time').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // Login y verificación de PIN
+    async function submitPin() {
+      const pin = document.getElementById('pin-code').value.trim();
+      if (!pin) return;
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin })
+        });
+        const data = await res.json();
+        if (data.success && data.token) {
+          AUTH_TOKEN = data.token;
+          localStorage.setItem('jarvis_token', AUTH_TOKEN);
+          loginOverlay.style.display = 'none';
+        } else {
+          document.getElementById('pin-error').style.display = 'block';
+        }
+      } catch (e) {
+        document.getElementById('pin-error').innerText = 'Error al verificar PIN';
+        document.getElementById('pin-error').style.display = 'block';
+      }
+    }
+
+    // Auto-login si ya tiene token
+    if (localStorage.getItem('jarvis_token')) {
+      loginOverlay.style.display = 'none';
+    }
+
+    // Desbloquear audio para iOS Safari al interactuar por primera vez
+    let audioUnlocked = false;
+    function unlockAudio() {
+      if (!audioUnlocked) {
+        const dummyAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==');
+        dummyAudio.play().catch(() => {});
+        audioUnlocked = true;
+      }
+    }
+    document.body.addEventListener('touchstart', unlockAudio, { once: true });
+    document.body.addEventListener('click', unlockAudio, { once: true });
+
+    // Estado en tiempo real del PC Agent
+    async function checkHealth() {
+      try {
+        const res = await fetch('/health');
+        const data = await res.json();
+        if (data.pcAgentConnected) {
+          arcLogo.className = 'arc-reactor';
+          pcStatus.innerText = 'PC Agent: CONECTADO 🟢';
+        } else {
+          arcLogo.className = 'arc-reactor offline';
+          pcStatus.innerText = 'PC Agent: DESCONECTADO 🔴';
+        }
+      } catch (e) {
+        arcLogo.className = 'arc-reactor offline';
+        pcStatus.innerText = 'Servidor: DESCONECTADO 🔴';
+      }
+    }
+    setInterval(checkHealth, 4000);
+    checkHealth();
+
+    function addMsg(role, content, modelUsed = '', imageBase64 = null, imageUrl = null) {
+      const msg = document.createElement('div');
+      msg.className = `msg ${role === 'user' ? 'user' : 'jarvis'}`;
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      
+      let html = '';
+      if (role !== 'user') {
+        html += `<span class="sender">🤖 J.A.R.V.I.S. ${modelUsed ? '[' + modelUsed + ']' : ''}</span>`;
+      }
+      if (imageUrl) {
+        html += `<img src="${imageUrl}" />`;
+      } else if (imageBase64) {
+        html += `<img src="data:image/png;base64,${imageBase64}" />`;
+      }
+      html += `<div>${content}</div><span class="time">${timeStr}</span>`;
+      msg.innerHTML = html;
+      
+      chatBox.appendChild(msg);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    async function sendMsg(textOverride = null) {
+      const text = textOverride || textInput.value.trim();
+      if (!text) return;
+      if (!textOverride) textInput.value = '';
+
+      addMsg('user', text);
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${AUTH_TOKEN}`
+          },
+          body: JSON.stringify({ messages: [{ role: 'user', content: text }] })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          addMsg('assistant', data.message.content, data.modelUsed, data.imageBase64, data.imageUrl);
+          playTTS(data.message.content);
+        } else {
+          addMsg('assistant', '⚠️ Error: ' + (data.error || 'Respuesta no válida'));
+        }
+      } catch (err) {
+        addMsg('assistant', '❌ Error al conectar con JARVIS.');
+      }
+    }
+
+    async function handleFileUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result.split(',')[1];
+        addMsg('user', `📎 Archivo adjunto: ${file.name}`, '', base64);
+        
+        try {
+          const res = await fetch('/api/analyze-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${AUTH_TOKEN}` },
+            body: JSON.stringify({ imageBase64: base64, prompt: 'Analiza detalladamente este archivo/imagen y responde como J.A.R.V.I.S.' })
+          });
+          const data = await res.json();
+          if (data.success) {
+            addMsg('assistant', data.message.content, data.modelUsed);
+            playTTS(data.message.content);
+          }
+        } catch (err) {
+          addMsg('assistant', '❌ No se pudo analizar el archivo.');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function playTTS(text) {
+      try {
+        const res = await fetch('/api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${AUTH_TOKEN}` },
+          body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+        if (data.success && data.audioBase64) {
+          const audio = new Audio(`data:audio/mpeg;base64,${data.audioBase64}`);
+          audio.play().catch(e => console.log('Audio playback error:', e));
+        }
+      } catch (e) {}
+    }
+
+    // Reconocimiento de voz nativo Web Speech API (Safari iOS / Chrome)
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    let isListening = false;
+
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.lang = 'es-ES';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          sendMsg(transcript);
+        }
+      };
+
+      recognition.onend = () => {
+        isListening = false;
+        micBtn.className = 'btn btn-mic';
+      };
+
+      recognition.onerror = () => {
+        isListening = false;
+        micBtn.className = 'btn btn-mic';
+      };
+    }
+
+    function toggleVoice() {
+      unlockAudio();
+      if (recognition) {
+        if (!isListening) {
+          recognition.start();
+          isListening = true;
+          micBtn.className = 'btn btn-mic listening';
+        } else {
+          recognition.stop();
+          isListening = false;
+          micBtn.className = 'btn btn-mic';
+        }
+      } else {
+        alert('Tu navegador no soporta reconocimiento de voz nativo.');
+      }
+    }
+
+    async function quickAction(type) {
+      unlockAudio();
+      if (type === 'takeScreenshot') {
+        addMsg('user', '📸 Capturar pantalla de PC');
+        const res = await fetch('/api/pc/command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${AUTH_TOKEN}` },
+          body: JSON.stringify({ action: 'takeScreenshot' })
+        });
+        const data = await res.json();
+        if (data.success && data.data?.base64) {
+          addMsg('assistant', 'Captura efectuada correctamente.', 'PC Agent', data.data.base64);
+        } else {
+          addMsg('assistant', '❌ ' + (data.error || 'No se pudo realizar la captura.'));
+        }
+      } else if (type === 'listProcesses') {
+        addMsg('user', '📋 Ver programas abiertos en PC');
+        const res = await fetch('/api/pc/command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${AUTH_TOKEN}` },
+          body: JSON.stringify({ action: 'listProcesses' })
+        });
+        const data = await res.json();
+        if (data.success) {
+          const list = (data.data || []).slice(0, 6).map(p => `• ${p.ProcessName}: ${p.MainWindowTitle}`).join('\n');
+          addMsg('assistant', `Programas detectados en Windows:\n${list}`, 'PC Agent');
+        }
+      } else if (type === 'generateImage') {
+        sendMsg('Genera una imagen de un coche deportivo futurista volando sobre la ciudad');
+      } else if (type === 'openSpotify') {
+        sendMsg('Abre la aplicación Spotify en mi ordenador');
+      } else if (type === 'wakePC') {
+        sendMsg('Enciende mi PC');
+      }
+    }
+  </script>
+</body>
+</html>

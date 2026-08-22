@@ -5,6 +5,5 @@ dist/
 .vercel/
 .railway/
 api/
-public/
 render.yaml
 nixpacks.toml
