@@ -313,6 +313,25 @@ async function checkAndExecutePCCommand(text: string): Promise<{ executed: boole
   return { executed: false };
 }
 
+async function buildJarvisSystemMessage(): Promise<string> {
+  const memories = await jarvisMemory.getAllMemories();
+  const tasks = await jarvisMemory.getPendingTasks();
+
+  let context = 'Eres J.A.R.V.I.S., una inteligencia artificial personal de élite de diseño futurista. Hablas en español impecable, culto, elegante y leal a tu señor.\n';
+  context += 'Respondes de forma directa, concisa y natural, adaptada para voz y conversación en vivo.\n';
+  context += 'Tienes acceso a herramientas en tiempo real (clima, noticias, memoria, tareas, imágenes FLUX, análisis de archivos e interacción con el ordenador Windows).\n\n';
+
+  if (memories.length > 0) {
+    context += `DATOS EN MEMORIA SOBRE EL USUARIO:\n• ${memories.join('\n• ')}\n\n`;
+  }
+
+  if (tasks.length > 0) {
+    context += `TAREAS PENDIENTES DEL USUARIO:\n• ${tasks.map((t) => t.title).join('\n• ')}\n\n`;
+  }
+
+  return context;
+}
+
 // Chat con OmniRoute (con Fallback a Groq Llama-3.3 y Detección Automática de Visión)
 app.post('/api/chat', async (req, res) => {
   const { messages, model, imageBase64 } = req.body;
@@ -386,9 +405,10 @@ app.post('/api/chat', async (req, res) => {
     return { role: m.role, content: String(m.content || '') };
   });
 
+  const systemPromptContent = await buildJarvisSystemMessage();
   const systemMessage = {
     role: 'system',
-    content: 'Eres J.A.R.V.I.S., una inteligencia artificial personal de élite. Hablas en español, eres elegante, preciso y leal a tu señor. Respondes de forma concisa pero inteligente.',
+    content: systemPromptContent,
   };
 
   const targetModel = model || process.env.DEFAULT_MODEL || 'omniroute/auto/best-coding';
