@@ -421,7 +421,7 @@ app.post('/api/chat', async (req, res) => {
     content: systemPromptContent,
   };
 
-  const targetModel = model || process.env.DEFAULT_MODEL || 'omniroute/auto/best-coding';
+  const targetModel = model || process.env.DEFAULT_MODEL || 'gpt-4o-mini';
 
   // 1. Intentar responder vía OmniRoute
   try {
@@ -467,11 +467,11 @@ app.post('/api/chat', async (req, res) => {
 
     const data = await response.json();
     if (response.ok && data.choices?.[0]?.message?.content) {
-      return res.json({
-        success: true,
-        modelUsed: 'Groq Llama-3.3-70b',
-        message: { role: 'assistant', content: data.choices[0].message.content },
-      });
+return res.json({
+          success: true,
+          modelUsed: 'Groq gpt-oss-20b',
+          message: { role: 'assistant', content: data.choices[0].message.content },
+        });
     }
   } catch (err: any) {
     console.error('Groq Chat error:', err.message);
@@ -633,7 +633,7 @@ app.post('/api/tts', async (req, res) => {
 server.listen(PORT, () => {
   console.log('==================================================');
   console.log(`🤖 JARVIS Core Server escuchando en puerto ${PORT}`);
-  console.log(`🧠 IA: OmniRoute / Groq Llama-3.3-70b + Whisper`);
+  console.log(`🧠 IA: OmniRoute / Groq gpt-oss-20b + Whisper`);
   console.log(`🎙️ Voz: ElevenLabs`);
   console.log(`💻 WebSocket Agent Server: /ws/agent`);
   console.log('==================================================');
