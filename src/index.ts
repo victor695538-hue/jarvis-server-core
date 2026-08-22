@@ -395,14 +395,21 @@ app.post('/api/chat', async (req, res) => {
     });
   }
 
-  // Sanitizar mensajes para que modelos de solo texto reciban siempre cadenas limpias
+  // Sanitizar mensajes para que modelos de solo texto reciban siempre cadenas limpias sin Data URIs ni nombres de imágenes binarias
   const sanitizedMessages = messages.map((m: any) => {
-    if (typeof m.content === 'string') return { role: m.role, content: m.content };
-    if (Array.isArray(m.content)) {
-      const textPart = m.content.find((c: any) => c.type === 'text')?.text || 'Detalla lo que ves en esta imagen';
-      return { role: m.role, content: textPart };
-    }
-    return { role: m.role, content: String(m.content || '') };
+    let text = typeof m.content === 'string' 
+      ? m.content 
+      : Array.isArray(m.content) 
+        ? (m.content.find((c: any) => c.type === 'text')?.text || 'Analiza esta consulta') 
+        : String(m.content || '');
+
+    text = text
+      .replace(/data:image\/[a-zA-Z]+;base64,[a-zA-Z0-9+/=]+/g, '[Imagen Adjunta]')
+      .replace(/image\.png/gi, 'imagen')
+      .replace(/\[image\]/gi, '[Imagen]');
+
+    if (!text.trim()) text = 'Analiza la solicitud del usuario';
+    return { role: m.role, content: text };
   });
 
   const systemPromptContent = await buildJarvisSystemMessage();
