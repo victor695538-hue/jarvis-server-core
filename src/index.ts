@@ -9,6 +9,8 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { generateImage } from './imageGen';
 import { JARVIS_SKILLS } from './skills';
 
+import fs from 'fs';
+
 dotenv.config();
 
 const app = express();
@@ -19,12 +21,17 @@ const wss = new WebSocketServer({ server, path: '/ws/agent' });
 app.use(cors());
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
-const publicPath = path.resolve(__dirname, '../public');
+
+const publicPath = path.resolve(process.cwd(), 'public');
 app.use(express.static(publicPath));
 
 // Servir la interfaz Web UI en la raíz /
 app.get('/', (req, res) => {
-  res.sendFile(path.join(publicPath, 'index.html'));
+  const htmlFile = path.join(publicPath, 'index.html');
+  if (fs.existsSync(htmlFile)) {
+    return res.sendFile(htmlFile);
+  }
+  return res.status(200).send('<html><head><title>JARVIS</title></head><body style="background:#05070e;color:#00f0ff;font-family:sans-serif;padding:40px;text-align:center;"><h1>J.A.R.V.I.S. Core Online</h1><p>Cargando interfaz...</p></body></html>');
 });
 
 const JARVIS_AUTH_TOKEN = process.env.JARVIS_AUTH_TOKEN || 'jarvis_secret_token_2026';
