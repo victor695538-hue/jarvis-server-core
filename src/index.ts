@@ -90,9 +90,9 @@ app.post('/api/auth/login', (req, res) => {
   return res.status(401).json({ success: false, error: 'PIN incorrecto' });
 });
 
-// Middleware de autenticación
+// Middleware de autenticación (solo para rutas /api/* protegidas)
 app.use((req, res, next) => {
-  if (req.path === '/' || req.path === '/health' || req.path === '/api/auth/login') return next();
+  if (!req.path.startsWith('/api') || req.path === '/api' || req.path === '/api/auth/login') return next();
   const token = req.headers['authorization']?.replace('Bearer ', '');
   if (token !== JARVIS_AUTH_TOKEN) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -100,8 +100,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check
-app.get('/', (req, res) => {
+// API Root check
+app.get('/api', (req, res) => {
   res.json({ status: 'online', name: 'JARVIS Core Server' });
 });
 
