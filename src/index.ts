@@ -4,7 +4,10 @@ import FormData from 'form-data';
 import dotenv from 'dotenv';
 import http from 'http';
 import path from 'path';
+import wol from 'wol';
 import { WebSocketServer, WebSocket } from 'ws';
+import { generateImage } from './imageGen';
+import { JARVIS_SKILLS } from './skills';
 
 dotenv.config();
 
@@ -19,10 +22,12 @@ app.use(express.urlencoded({ limit: '100mb', extended: true }));
 app.use(express.static(path.join(__dirname, '../public')));
 
 const JARVIS_AUTH_TOKEN = process.env.JARVIS_AUTH_TOKEN || 'jarvis_secret_token_2026';
+const JARVIS_PIN = process.env.JARVIS_PIN || '2026';
 const OMNIROUTE_BASE_URL = process.env.OMNIROUTE_BASE_URL || 'http://localhost:20128/v1';
 const OMNIROUTE_API_KEY = process.env.OMNIROUTE_API_KEY || 'omniroute-local-key';
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || '';
+const TARGET_MAC_ADDRESS = process.env.TARGET_MAC_ADDRESS || '00:11:22:33:44:55';
 
 // Gestión de conexiones WebSocket con PC Agent
 const connectedAgents = new Map<string, WebSocket>();
@@ -76,9 +81,18 @@ function sendTaskToPCAgent(action: string, payload: any = {}): Promise<any> {
   });
 }
 
+// Autenticación por PIN privado
+app.post('/api/auth/login', (req, res) => {
+  const { pin } = req.body;
+  if (pin === JARVIS_PIN || pin === JARVIS_AUTH_TOKEN) {
+    return res.json({ success: true, token: JARVIS_AUTH_TOKEN });
+  }
+  return res.status(401).json({ success: false, error: 'PIN incorrecto' });
+});
+
 // Middleware de autenticación
 app.use((req, res, next) => {
-  if (req.path === '/' || req.path === '/health') return next();
+  if (req.path === '/' || req.path === '/health' || req.path === '/api/auth/login') return next();
   const token = req.headers['authorization']?.replace('Bearer ', '');
   if (token !== JARVIS_AUTH_TOKEN) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -96,6 +110,32 @@ app.get('/health', (req, res) => {
   res.json({ status: 'online', pcAgentConnected: activePC > 0, timestamp: new Date().toISOString() });
 });
 
+// Catálogo de Habilidades estilo OpenJarvis
+app.get('/api/skills', (req, res) => {
+  res.json({ success: true, skills: JARVIS_SKILLS });
+});
+
+// Generación de Imágenes (FLUX / Pollinations)
+app.post('/api/generate-image', async (req, res) => {
+  const { prompt } = req.body;
+  if (!prompt) return res.status(400).json({ error: 'Falta el prompt de la imagen' });
+  const result = await generateImage(prompt);
+  res.json(result);
+});
+
+// Wake-on-LAN para encender el PC a distancia
+app.post('/api/pc/wake', (req, res) => {
+  const mac = req.body.mac || TARGET_MAC_ADDRESS;
+  wol.wake(mac, (err: any, result: any) => {
+    if (err) {
+      console.error('Error al enviar paquete Wake-on-LAN:', err);
+      return res.json({ success: false, error: err.message });
+    }
+    console.log(`⚡ Paquete WoL enviado exitosamente a ${mac}`);
+    return res.json({ success: true, message: `Paquete mágico WoL enviado a la MAC ${mac}` });
+  });
+});
+
 // Endpoints del PC Agent
 app.get('/api/pc/status', (req, res) => {
   const activeCount = Array.from(connectedAgents.values()).filter((ws) => ws.readyState === WebSocket.OPEN).length;
@@ -109,11 +149,38 @@ app.post('/api/pc/command', async (req, res) => {
   res.json(result);
 });
 
-async function checkAndExecutePCCommand(text: string): Promise<{ executed: boolean; resultText?: string }> {
+async function checkAndExecutePCCommand(text: string): Promise<{ executed: boolean; resultText?: string; imageBase64?: string; imageUrl?: string }> {
   const lower = text.toLowerCase();
+
+  // Detección de Generación de Imagen
+  if (lower.includes('genera imagen') || lower.includes('dibuja') || lower.includes('crea una imagen') || lower.includes('diseña una foto')) {
+    const prompt = text.replace(/.*(genera imagen|dibuja|crea una imagen|diseña una foto)\s*(de|de un|de una)?\s*/i, '').trim();
+    if (prompt) {
+      const imgRes = await generateImage(prompt);
+      if (imgRes.success) {
+        return {
+          executed: true,
+          resultText: `He generado la imagen solicítada sobre: '${prompt}', señor.`,
+          imageUrl: imgRes.imageUrl,
+          imageBase64: imgRes.imageBase64,
+        };
+      }
+    }
+  }
+
+  // Detección Encendido de PC (Wake-on-LAN)
+  if (lower.includes('enciende mi pc') || lower.includes('prender ordenador') || lower.includes('encender ordenador')) {
+    return new Promise((resolve) => {
+      wol.wake(TARGET_MAC_ADDRESS, (err: any) => {
+        if (err) resolve({ executed: true, resultText: `No se pudo enviar el paquete WoL: ${err.message}` });
+        else resolve({ executed: true, resultText: `He enviado la señal Wake-on-LAN para encender su ordenador, señor.` });
+      });
+    });
+  }
+
   if (lower.includes('captura') || lower.includes('screenshot')) {
     const res = await sendTaskToPCAgent('takeScreenshot');
-    if (res.success) return { executed: true, resultText: 'He tomado una captura de pantalla de su sistema, señor.' };
+    if (res.success) return { executed: true, resultText: 'He tomado una captura de pantalla de su sistema, señor.', imageBase64: res.data?.base64 };
     return { executed: true, resultText: `No se pudo tomar la captura: ${res.error}` };
   }
   if (lower.includes('procesos') || lower.includes('programas abiertos')) {
@@ -190,8 +257,10 @@ app.post('/api/chat', async (req, res) => {
   if (pcExec.executed) {
     return res.json({
       success: true,
-      modelUsed: 'JARVIS PC Exec',
+      modelUsed: 'JARVIS Agent Action',
       message: { role: 'assistant', content: pcExec.resultText },
+      imageBase64: pcExec.imageBase64,
+      imageUrl: pcExec.imageUrl,
     });
   }
 
