@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#05070e">
-  <title>J.A.R.V.I.S. Personal AI</title>
+  <title>J.A.R.V.I.S. Core AI</title>
   <style>
     :root {
       --cyan: #00f0ff;
@@ -16,12 +16,13 @@
       --border: #1e293b;
       --red: #ff3366;
       --gold: #ffd700;
+      --green: #10b981;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
     body { background-color: var(--bg); color: #e2e8f0; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
     
     /* Login Lock Screen */
-    #login-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+    #login-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 2500; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
     .login-box { background: var(--card-bg); border: 1px solid var(--border); padding: 32px 24px; border-radius: 24px; width: 100%; max-width: 360px; text-align: center; box-shadow: 0 10px 30px rgba(0, 240, 255, 0.1); }
     .login-title { font-size: 20px; font-weight: 800; color: var(--cyan); letter-spacing: 3px; margin-bottom: 8px; }
     .login-sub { font-size: 12px; color: #64748b; margin-bottom: 24px; }
@@ -29,85 +30,134 @@
     .pin-input:focus { border-color: var(--cyan); }
     .login-btn { width: 100%; background: var(--cyan); color: #05070e; border: none; padding: 14px; border-radius: 16px; font-size: 15px; font-weight: bold; cursor: pointer; }
 
+    /* Header */
     header { background: var(--card-bg); border-bottom: 1px solid var(--border); padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; z-index: 10; }
     .header-left { display: flex; align-items: center; gap: 10px; }
     h1 { font-size: 17px; font-weight: 800; color: var(--cyan); letter-spacing: 2px; text-transform: uppercase; }
     .status-text { font-size: 11px; color: #64748b; margin-top: 1px; }
 
-    /* Immersive Movie-Accurate Plasma Sphere Interface Overlay */
-    #plasma-overlay {
-      position: fixed;
-      inset: 0;
-      background: radial-gradient(circle at center, rgba(0, 240, 255, 0.12) 0%, rgba(5, 7, 14, 0.98) 75%);
-      z-index: 900;
+    /* JARVIS CORE Central Visualizer Panel */
+    .core-panel {
+      background: radial-gradient(circle at center, rgba(0, 240, 255, 0.06) 0%, rgba(5, 7, 14, 0.95) 75%);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 16px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 20px;
+      position: relative;
+      gap: 12px;
+    }
+
+    #core-canvas {
+      width: 220px;
+      height: 220px;
+      cursor: pointer;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    #core-canvas:active {
+      transform: scale(0.95);
+    }
+
+    .state-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      color: var(--cyan);
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.2);
+      transition: all 0.3s ease;
+    }
+    .state-badge.idle { border-color: var(--cyan); color: var(--cyan); }
+    .state-badge.listening { border-color: var(--red); color: var(--red); box-shadow: 0 0 16px rgba(255, 51, 102, 0.4); }
+    .state-badge.thinking { border-color: var(--gold); color: var(--gold); box-shadow: 0 0 16px rgba(255, 215, 0, 0.4); }
+    .state-badge.speaking { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 20px rgba(0, 240, 255, 0.5); }
+    .state-badge.executing { border-color: var(--green); color: var(--green); box-shadow: 0 0 16px rgba(16, 185, 129, 0.4); }
+
+    .live-transcript {
+      font-size: 14px;
+      color: #94a3b8;
+      text-align: center;
+      max-width: 400px;
+      min-height: 24px;
+      line-height: 1.4;
+      font-style: italic;
+    }
+
+    /* Dedicated Fullscreen JARVIS Voice Mode Overlay */
+    #voice-mode-overlay {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(0, 240, 255, 0.12) 0%, rgba(5, 7, 14, 0.98) 80%);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
       backdrop-filter: blur(25px);
       -webkit-backdrop-filter: blur(25px);
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.35s ease;
     }
-    #plasma-overlay.active {
+    #voice-mode-overlay.active {
       opacity: 1;
       pointer-events: auto;
     }
 
-    /* HTML5 3D Plasma Sphere Canvas */
-    #plasma-canvas {
+    #fullscreen-canvas {
       width: 280px;
       height: 280px;
       cursor: pointer;
       border-radius: 50%;
     }
 
-    .plasma-status-text {
-      font-size: 14px;
-      font-weight: 800;
-      color: var(--cyan);
-      letter-spacing: 2px;
-      margin-top: 20px;
-      text-transform: uppercase;
-      text-shadow: 0 0 14px var(--cyan);
-      text-align: center;
-    }
-
-    .plasma-transcript-box {
-      margin-top: 12px;
-      max-width: 340px;
-      font-size: 15px;
+    .vm-transcript {
+      margin-top: 24px;
+      max-width: 450px;
+      font-size: 16px;
       color: #e2e8f0;
       text-align: center;
       line-height: 1.5;
-      min-height: 44px;
+      min-height: 50px;
     }
 
-    .plasma-actions {
+    .vm-controls {
       display: flex;
       gap: 12px;
-      margin-top: 24px;
+      margin-top: 32px;
     }
 
-    .action-btn {
+    .vm-btn {
       background: #0f172a;
       border: 1px solid var(--border);
       color: #e2e8f0;
-      padding: 10px 20px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: bold;
+      padding: 12px 24px;
+      border-radius: 24px;
+      font-size: 14px;
+      font-weight: 700;
       cursor: pointer;
+      transition: all 0.2s;
     }
-    .action-btn.send-now {
-      background: var(--cyan);
-      color: #05070e;
-      border-color: var(--cyan);
+    .vm-btn.interrupt {
+      background: rgba(255, 51, 102, 0.15);
+      border-color: var(--red);
+      color: var(--red);
+    }
+    .vm-btn:active {
+      transform: scale(0.95);
     }
 
-    /* Main Chat Layout */
+    /* Main Chat Layout & Integrated History */
     #chat-box { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; scroll-behavior: smooth; }
     
     .msg { max-width: 85%; padding: 12px 16px; border-radius: 18px; font-size: 15px; line-height: 1.45; word-break: break-word; animation: fadeIn 0.2s ease-out; }
@@ -135,6 +185,7 @@
     
     .btn-file { background: #0f172a; border: 1px solid var(--border); color: #94a3b8; }
     .btn-mic { background: #0f172a; border: 1px solid var(--cyan); color: var(--cyan); box-shadow: 0 0 12px rgba(0, 240, 255, 0.4); }
+    .btn-mic.listening { background: var(--red); border-color: var(--red); color: #fff; }
     .btn-send { background: var(--cyan); color: #05070e; font-weight: bold; }
   </style>
 </head>
@@ -151,14 +202,14 @@
     </div>
   </div>
 
-  <!-- Immersive Full Screen 3D Plasma Sphere Interface -->
-  <div id="plasma-overlay">
-    <canvas id="plasma-canvas" width="280" height="280" onclick="toggleVoiceSession()"></canvas>
-    <div id="plasma-status" class="plasma-status-text">JARVIS ESCUCHANDO... HABLA AHORA</div>
-    <div id="plasma-transcript" class="plasma-transcript-box">Di una orden por voz...</div>
-    <div class="plasma-actions">
-      <button class="action-btn send-now" onclick="forceSendVoice()">➤ ENVIAR ORDEN</button>
-      <button class="action-btn" onclick="closePlasmaOverlay()">▲ CERRAR</button>
+  <!-- Dedicated Fullscreen JARVIS Voice Mode Overlay -->
+  <div id="voice-mode-overlay">
+    <canvas id="fullscreen-canvas" width="280" height="280" onclick="handleCoreClick()"></canvas>
+    <div id="vm-badge" class="state-badge idle">IDLE</div>
+    <div id="vm-transcript" class="vm-transcript">Di "JARVIS" o habla para iniciar...</div>
+    <div class="vm-controls">
+      <button class="vm-btn interrupt" onclick="interruptJARVIS()">🛑 ESPERA (INTERRUMPIR)</button>
+      <button class="vm-btn" onclick="closeVoiceMode()">▲ SALIR DE MODO VOZ</button>
     </div>
   </div>
 
@@ -169,13 +220,20 @@
         <div id="pc-status" class="status-text">Verificando estado...</div>
       </div>
     </div>
-    <button class="btn btn-mic" style="width: 36px; height: 36px; font-size: 16px;" onclick="openPlasmaOverlay()">🎙️</button>
+    <button class="btn btn-mic" style="width: 36px; height: 36px; font-size: 16px;" onclick="openVoiceMode()">🎙️</button>
   </header>
+
+  <!-- Central JARVIS CORE Panel -->
+  <div class="core-panel">
+    <canvas id="core-canvas" width="220" height="220" onclick="handleCoreClick()"></canvas>
+    <div id="core-badge" class="state-badge idle">IDLE</div>
+    <div id="live-transcript" class="live-transcript">Presiona el núcleo o el micrófono para hablar con JARVIS...</div>
+  </div>
 
   <div id="chat-box">
     <div class="msg jarvis">
       <span class="sender">🤖 J.A.R.V.I.S.</span>
-      En línea y a su servicio, señor. Presiona el micrófono para hablar por voz con la esfera de plasma.
+      En línea y a su servicio, señor. Modo de conversación bidireccional activado para iPhone y PC.
       <span class="time" id="start-time"></span>
     </div>
   </div>
@@ -191,7 +249,7 @@
   <div class="input-bar">
     <input type="file" id="file-input" accept="image/*,.pdf,.txt" style="display: none;" onchange="handleFileUpload(event)">
     <button class="btn btn-file" onclick="document.getElementById('file-input').click()">📷</button>
-    <button class="btn btn-mic" onclick="openPlasmaOverlay()">🎙️</button>
+    <button id="main-mic-btn" class="btn btn-mic" onclick="toggleVoiceSession()">🎙️</button>
     <input type="text" id="text-input" placeholder="Háblale o escríbele a JARVIS..." onkeypress="if(event.key==='Enter') sendMsg()">
     <button class="btn btn-send" onclick="sendMsg()">➤</button>
   </div>
@@ -202,57 +260,91 @@
     const textInput = document.getElementById('text-input');
     const pcStatus = document.getElementById('pc-status');
     const loginOverlay = document.getElementById('login-overlay');
+    const mainMicBtn = document.getElementById('main-mic-btn');
 
-    const plasmaOverlay = document.getElementById('plasma-overlay');
-    const plasmaCanvas = document.getElementById('plasma-canvas');
-    const plasmaStatus = document.getElementById('plasma-status');
-    const plasmaTranscript = document.getElementById('plasma-transcript');
-    const ctx = plasmaCanvas.getContext('2d');
+    const coreCanvas = document.getElementById('core-canvas');
+    const coreCtx = coreCanvas.getContext('2d');
+    const coreBadge = document.getElementById('core-badge');
+    const liveTranscript = document.getElementById('live-transcript');
+
+    const voiceModeOverlay = document.getElementById('voice-mode-overlay');
+    const fullscreenCanvas = document.getElementById('fullscreen-canvas');
+    const fsCtx = fullscreenCanvas.getContext('2d');
+    const vmBadge = document.getElementById('vm-badge');
+    const vmTranscript = document.getElementById('vm-transcript');
 
     document.getElementById('start-time').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // Plasma Canvas Renderer
-    let plasmaMode = 'idle'; // 'idle', 'listening', 'speaking'
-    let plasmaParticles = [];
-    for (let i = 0; i < 40; i++) {
-      plasmaParticles.push({
+    // ESTADOS DE JARVIS CORE: 'idle', 'listening', 'thinking', 'speaking', 'executing'
+    let jarvisState = 'idle';
+    let currentAudio = null;
+    let messageHistory = [];
+
+    function setState(newState, message = '') {
+      jarvisState = newState;
+      
+      const badgeText = newState.toUpperCase();
+      coreBadge.className = `state-badge ${newState}`;
+      coreBadge.innerText = badgeText;
+
+      vmBadge.className = `state-badge ${newState}`;
+      vmBadge.innerText = badgeText;
+
+      if (message) {
+        liveTranscript.innerText = message;
+        vmTranscript.innerText = message;
+      }
+    }
+
+    // JARVIS CORE 3D Canvas Renderer Engine
+    let particles = [];
+    for (let i = 0; i < 45; i++) {
+      particles.push({
         angle: Math.random() * Math.PI * 2,
-        radius: 30 + Math.random() * 60,
-        speed: 0.02 + Math.random() * 0.04,
-        size: 2 + Math.random() * 4,
-        color: Math.random() > 0.5 ? '#00f0ff' : '#0052ff'
+        radius: 25 + Math.random() * 55,
+        speed: 0.015 + Math.random() * 0.03,
+        size: 1.8 + Math.random() * 3.2,
+        color: Math.random() > 0.4 ? '#00f0ff' : '#0052ff'
       });
     }
 
-    function renderPlasma() {
-      ctx.clearRect(0, 0, plasmaCanvas.width, plasmaCanvas.height);
-      const cx = plasmaCanvas.width / 2;
-      const cy = plasmaCanvas.height / 2;
+    function renderCanvas(canvas, ctx, size) {
+      ctx.clearRect(0, 0, size, size);
+      const cx = size / 2;
+      const cy = size / 2;
 
-      const auraGrad = ctx.createRadialGradient(cx, cy, 20, cx, cy, 130);
-      let coreColor = '#00f0ff';
-      if (plasmaMode === 'listening') coreColor = '#ff3366';
-      if (plasmaMode === 'speaking') coreColor = '#00ffff';
+      let primaryColor = '#00f0ff';
+      if (jarvisState === 'listening') primaryColor = '#ff3366';
+      if (jarvisState === 'thinking') primaryColor = '#ffd700';
+      if (jarvisState === 'speaking') primaryColor = '#00ffff';
+      if (jarvisState === 'executing') primaryColor = '#10b981';
 
-      auraGrad.addColorStop(0, coreColor);
-      auraGrad.addColorStop(0.5, 'rgba(0, 82, 255, 0.4)');
+      // Outer Glow Aura
+      const auraGrad = ctx.createRadialGradient(cx, cy, 15, cx, cy, size * 0.48);
+      auraGrad.addColorStop(0, primaryColor);
+      auraGrad.addColorStop(0.5, 'rgba(0, 82, 255, 0.35)');
       auraGrad.addColorStop(1, 'transparent');
       ctx.fillStyle = auraGrad;
       ctx.beginPath();
-      ctx.arc(cx, cy, 130, 0, Math.PI * 2);
+      ctx.arc(cx, cy, size * 0.48, 0, Math.PI * 2);
       ctx.fill();
 
-      plasmaParticles.forEach(p => {
-        p.angle += (plasmaMode === 'speaking' ? p.speed * 2.5 : p.speed);
-        const x = cx + Math.cos(p.angle) * p.radius;
-        const y = cy + Math.sin(p.angle) * p.radius;
+      // Swirling Energy Particles
+      particles.forEach(p => {
+        let currentSpeed = p.speed;
+        if (jarvisState === 'thinking') currentSpeed *= 3;
+        if (jarvisState === 'speaking') currentSpeed *= 2;
 
-        ctx.fillStyle = p.color;
+        p.angle += currentSpeed;
+        const x = cx + Math.cos(p.angle) * (p.radius * (size / 220));
+        const y = cy + Math.sin(p.angle) * (p.radius * (size / 220));
+
+        ctx.fillStyle = jarvisState === 'listening' ? '#ff3366' : p.color;
         ctx.beginPath();
         ctx.arc(x, y, p.size, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = 'rgba(0, 240, 255, 0.25)';
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.2)';
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(cx, cy);
@@ -260,25 +352,30 @@
         ctx.stroke();
       });
 
-      const coreGrad = ctx.createRadialGradient(cx - 10, cy - 10, 5, cx, cy, 55);
+      // Core Spherical Nucleus
+      const coreGrad = ctx.createRadialGradient(cx - 8, cy - 8, 4, cx, cy, 45 * (size / 220));
       coreGrad.addColorStop(0, '#ffffff');
-      coreGrad.addColorStop(0.4, coreColor);
+      coreGrad.addColorStop(0.4, primaryColor);
       coreGrad.addColorStop(1, '#001133');
       ctx.fillStyle = coreGrad;
       ctx.beginPath();
-      ctx.arc(cx, cy, 55, 0, Math.PI * 2);
+      ctx.arc(cx, cy, 45 * (size / 220), 0, Math.PI * 2);
       ctx.fill();
-
-      requestAnimationFrame(renderPlasma);
     }
-    renderPlasma();
 
-    // Desbloqueo de Audio Safari / Chrome
+    function animLoop() {
+      renderCanvas(coreCanvas, coreCtx, 220);
+      renderCanvas(fullscreenCanvas, fsCtx, 280);
+      requestAnimationFrame(animLoop);
+    }
+    animLoop();
+
+    // Desbloquear audio para iOS Safari
     let audioUnlocked = false;
     function unlockAudio() {
       if (!audioUnlocked) {
-        const dummyAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==');
-        dummyAudio.play().catch(() => {});
+        const dummy = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==');
+        dummy.play().catch(() => {});
         audioUnlocked = true;
       }
     }
@@ -324,6 +421,9 @@
     checkHealth();
 
     function addMsg(role, content, modelUsed = '', imageBase64 = null, imageUrl = null) {
+      const msgObj = { id: 'msg_' + Date.now(), role, content, timestamp: new Date().toISOString(), modelUsed };
+      messageHistory.push(msgObj);
+
       const msg = document.createElement('div');
       msg.className = `msg ${role === 'user' ? 'user' : 'jarvis'}`;
       const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -344,15 +444,34 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
+    // Interrupción activa de la voz de JARVIS
+    function interruptJARVIS() {
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+      }
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      setState('idle', 'Interrumpido. ¿En qué puedo ayudarte, señor?');
+      startVoiceSession();
+    }
+
+    function handleCoreClick() {
+      if (jarvisState === 'speaking') {
+        interruptJARVIS();
+      } else {
+        toggleVoiceSession();
+      }
+    }
+
     async function sendMsg(textOverride = null) {
       const text = textOverride || textInput.value.trim();
       if (!text) return;
       if (!textOverride) textInput.value = '';
 
       addMsg('user', text);
-      plasmaMode = 'idle';
-      plasmaStatus.innerText = 'PROCESANDO ORDEN...';
-      plasmaTranscript.innerText = `"${text}"`;
+      setState('thinking', `Pensando: "${text}"...`);
 
       try {
         const res = await fetch('/api/chat', {
@@ -366,15 +485,18 @@
 
         const data = await res.json();
         if (data.success) {
+          if (data.modelUsed?.includes('PC Exec') || data.modelUsed?.includes('Action')) {
+            setState('executing', data.message.content);
+          }
           addMsg('assistant', data.message.content, data.modelUsed, data.imageBase64, data.imageUrl);
           speakJARVIS(data.message.content);
         } else {
           addMsg('assistant', '⚠️ Error: ' + (data.error || 'Respuesta no válida'));
-          plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR';
+          setState('idle', 'Toca el núcleo para hablar con JARVIS');
         }
       } catch (err) {
         addMsg('assistant', '❌ Error al conectar con JARVIS.');
-        plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR';
+        setState('idle', 'Toca el núcleo para hablar con JARVIS');
       }
     }
 
@@ -386,7 +508,7 @@
       reader.onload = async () => {
         const base64 = reader.result.split(',')[1];
         addMsg('user', `📎 Archivo adjunto: ${file.name}`, '', base64);
-        plasmaStatus.innerText = 'ANALIZANDO IMAGEN...';
+        setState('thinking', 'Analizando archivo...');
         
         try {
           const res = await fetch('/api/analyze-image', {
@@ -400,20 +522,19 @@
             speakJARVIS(data.message.content);
           } else {
             addMsg('assistant', '❌ No se pudo analizar la imagen.');
-            plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR';
+            setState('idle', 'Toca el núcleo para hablar');
           }
         } catch (err) {
           addMsg('assistant', '❌ Error en análisis de imagen.');
-          plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR';
+          setState('idle', 'Toca el núcleo para hablar');
         }
       };
       reader.readAsDataURL(file);
     }
 
+    // Doble motor TTS con fallback nativo instantáneo
     function speakJARVIS(text) {
-      plasmaMode = 'speaking';
-      plasmaStatus.innerText = 'J.A.R.V.I.S. RESPONDIENDO...';
-      plasmaTranscript.innerText = text;
+      setState('speaking', text);
 
       fetch('/api/tts', {
         method: 'POST',
@@ -423,12 +544,12 @@
       .then(r => r.json())
       .then(data => {
         if (data.success && data.audioBase64) {
-          const audio = new Audio(`data:audio/mpeg;base64,${data.audioBase64}`);
-          audio.onended = () => {
-            plasmaMode = 'idle';
-            plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR';
+          currentAudio = new Audio(`data:audio/mpeg;base64,${data.audioBase64}`);
+          currentAudio.onended = () => {
+            currentAudio = null;
+            setState('idle', 'Toca el núcleo para hablar con JARVIS');
           };
-          audio.play().catch(e => speakNative(text));
+          currentAudio.play().catch(e => speakNative(text));
         } else {
           speakNative(text);
         }
@@ -443,17 +564,15 @@
         utterance.lang = 'es-ES';
         utterance.rate = 1.05;
         utterance.onend = () => {
-          plasmaMode = 'idle';
-          plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR';
+          setState('idle', 'Toca el núcleo para hablar con JARVIS');
         };
         window.speechSynthesis.speak(utterance);
       } else {
-        plasmaMode = 'idle';
-        plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR';
+        setState('idle', 'Toca el núcleo para hablar con JARVIS');
       }
     }
 
-    // Sistema de Voz Garantizado con Auto-Enviado por Silencio
+    // Reconocimiento de voz nativo + Fallback MediaRecorder con Timeslice
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition = null;
     let mediaRecorder = null;
@@ -475,21 +594,22 @@
         }
         if (transcript.trim()) {
           currentSpeechText = transcript.trim();
-          plasmaTranscript.innerText = `"${currentSpeechText}"`;
+          setState('listening', `"${currentSpeechText}"`);
 
-          // Auto-enviar si deja de hablar durante 1.5 segundos
           clearTimeout(silenceTimer);
           silenceTimer = setTimeout(() => {
             if (isListening && currentSpeechText) {
-              forceSendVoice();
+              stopVoiceSession();
+              sendMsg(currentSpeechText);
             }
-          }, 1500);
+          }, 1400);
         }
       };
 
       recognition.onend = () => {
         if (isListening && currentSpeechText) {
-          forceSendVoice();
+          stopVoiceSession();
+          sendMsg(currentSpeechText);
         }
       };
       recognition.onerror = () => {
@@ -497,29 +617,36 @@
       };
     }
 
-    function openPlasmaOverlay() {
+    function openVoiceMode() {
       unlockAudio();
-      plasmaOverlay.classList.add('active');
+      voiceModeOverlay.classList.add('active');
       startVoiceSession();
     }
 
-    function closePlasmaOverlay() {
+    function closeVoiceMode() {
       stopVoiceSession();
-      plasmaOverlay.classList.remove('active');
+      voiceModeOverlay.classList.remove('active');
     }
 
     function toggleVoiceSession() {
       unlockAudio();
-      if (isListening) stopVoiceSession();
-      else startVoiceSession();
+      if (isListening) {
+        stopVoiceSession();
+      } else {
+        startVoiceSession();
+      }
     }
 
     function startVoiceSession() {
+      if (jarvisState === 'speaking') {
+        interruptJARVIS();
+        return;
+      }
+
       isListening = true;
       currentSpeechText = '';
-      plasmaMode = 'listening';
-      plasmaStatus.innerText = 'JARVIS ESCUCHANDO... HABLA AHORA';
-      plasmaTranscript.innerText = 'Escuchando tu voz...';
+      setState('listening', 'JARVIS escuchando... Habla ahora');
+      mainMicBtn.className = 'btn btn-mic listening';
 
       if (recognition) {
         try {
@@ -533,22 +660,15 @@
     function stopVoiceSession() {
       isListening = false;
       clearTimeout(silenceTimer);
-      plasmaMode = 'idle';
+      mainMicBtn.className = 'btn btn-mic';
+      if (jarvisState === 'listening') {
+        setState('idle', 'Toca el núcleo para hablar con JARVIS');
+      }
       if (recognition) {
         try { recognition.stop(); } catch (e) {}
       }
       if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
-      }
-    }
-
-    function forceSendVoice() {
-      const textToSend = currentSpeechText;
-      stopVoiceSession();
-      if (textToSend) {
-        sendMsg(textToSend);
-      } else {
-        plasmaStatus.innerText = 'NO SE DETECTÓ NINGÚN MENSAJE';
       }
     }
 
@@ -566,7 +686,7 @@
         mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
         mediaRecorder.onstop = async () => {
           if (audioChunks.length === 0) {
-            plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR';
+            setState('idle', 'Toca el núcleo para hablar con JARVIS');
             return;
           }
 
@@ -575,7 +695,7 @@
           reader.readAsDataURL(blob);
           reader.onloadend = async () => {
             const base64 = reader.result.split(',')[1];
-            plasmaStatus.innerText = 'TRANSCRIBIENDO VOZ...';
+            setState('thinking', 'Transcribiendo voz...');
 
             try {
               const sttRes = await fetch('/api/stt', {
@@ -585,27 +705,38 @@
               });
               const sttData = await sttRes.json();
               if (sttData.success && sttData.text) {
-                plasmaTranscript.innerText = `"${sttData.text}"`;
                 sendMsg(sttData.text);
               } else {
-                plasmaStatus.innerText = 'NO SE DETECTÓ VOZ CLARA';
-                setTimeout(() => plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR', 2000);
+                setState('idle', 'No se detectó voz clara');
               }
             } catch (err) {
-              plasmaStatus.innerText = 'TOCA LA ESFERA PARA HABLAR';
+              setState('idle', 'Toca el núcleo para hablar con JARVIS');
             }
           };
         };
-        mediaRecorder.start(500); // Timeslice 500ms
+        mediaRecorder.start(500);
       } catch (err) {
-        plasmaStatus.innerText = 'MICRÓFONO NO DISPONIBLE O DENEGADO';
+        setState('idle', 'Micrófono no disponible o denegado');
       }
     }
+
+    // Accesos directos de teclado para PC
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT') return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        toggleVoiceSession();
+      } else if (e.code === 'Escape') {
+        if (jarvisState === 'speaking') interruptJARVIS();
+        else closeVoiceMode();
+      }
+    });
 
     async function quickAction(type) {
       unlockAudio();
       if (type === 'takeScreenshot') {
         addMsg('user', '📸 Capturar pantalla de PC');
+        setState('thinking', 'Capturando pantalla del PC...');
         const res = await fetch('/api/pc/command', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${AUTH_TOKEN}` },
@@ -614,11 +745,14 @@
         const data = await res.json();
         if (data.success && data.data?.base64) {
           addMsg('assistant', 'Captura efectuada correctamente.', 'PC Agent', data.data.base64);
+          speakJARVIS('He tomado la captura de pantalla de su PC, señor.');
         } else {
           addMsg('assistant', '❌ ' + (data.error || 'No se pudo realizar la captura.'));
+          setState('idle', 'Toca el núcleo para hablar');
         }
       } else if (type === 'listProcesses') {
         addMsg('user', '📋 Ver programas abiertos en PC');
+        setState('thinking', 'Consultando programas en PC...');
         const res = await fetch('/api/pc/command', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${AUTH_TOKEN}` },
@@ -628,6 +762,7 @@
         if (data.success) {
           const list = (data.data || []).slice(0, 6).map(p => `• ${p.ProcessName}: ${p.MainWindowTitle}`).join('\n');
           addMsg('assistant', `Programas detectados en Windows:\n${list}`, 'PC Agent');
+          speakJARVIS('Aquí están los programas activos en su PC, señor.');
         }
       } else if (type === 'generateImage') {
         sendMsg('Genera una imagen de un coche deportivo futurista volando sobre la ciudad');
