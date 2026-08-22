@@ -2,19 +2,79 @@ import express from 'express';
 import cors from 'cors';
 import FormData from 'form-data';
 import dotenv from 'dotenv';
+import http from 'http';
+import path from 'path';
+import { WebSocketServer, WebSocket } from 'ws';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server, path: '/ws/agent' });
 
 app.use(cors());
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
+app.use(express.static(path.join(__dirname, '../public')));
 
 const JARVIS_AUTH_TOKEN = process.env.JARVIS_AUTH_TOKEN || 'jarvis_secret_token_2026';
+const OMNIROUTE_BASE_URL = process.env.OMNIROUTE_BASE_URL || 'http://localhost:20128/v1';
+const OMNIROUTE_API_KEY = process.env.OMNIROUTE_API_KEY || 'omniroute-local-key';
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || '';
+
+// Gestión de conexiones WebSocket con PC Agent
+const connectedAgents = new Map<string, WebSocket>();
+
+wss.on('connection', (ws, req) => {
+  console.log('💻 [WebSocket] Nuevo PC Agent intentando conectar...');
+  const url = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
+  const token = url.searchParams.get('token') || req.headers['authorization']?.replace('Bearer ', '');
+
+  if (token !== JARVIS_AUTH_TOKEN) {
+    ws.close(4001, 'Unauthorized');
+    return;
+  }
+
+  const agentId = 'pc_agent_' + Date.now();
+  connectedAgents.set(agentId, ws);
+  console.log(`✅ [WebSocket] PC Agent conectado ID: ${agentId}`);
+
+  ws.on('close', () => {
+    connectedAgents.delete(agentId);
+    console.log(`🔴 [WebSocket] PC Agent desconectado ID: ${agentId}`);
+  });
+});
+
+function sendTaskToPCAgent(action: string, payload: any = {}): Promise<any> {
+  return new Promise((resolve) => {
+    const activeAgent = Array.from(connectedAgents.values()).find((ws) => ws.readyState === WebSocket.OPEN);
+    if (!activeAgent) {
+      return resolve({ success: false, error: 'No hay ningún PC Agent activo conectado.' });
+    }
+
+    const commandId = 'cmd_' + Date.now();
+    const timeout = setTimeout(() => {
+      activeAgent.removeListener('message', handler);
+      resolve({ success: false, error: 'Tiempo de espera agotado al ejecutar comando en PC.' });
+    }, 15000);
+
+    const handler = (data: any) => {
+      try {
+        const msg = JSON.parse(data.toString());
+        if (msg.commandId === commandId) {
+          clearTimeout(timeout);
+          activeAgent.removeListener('message', handler);
+          resolve(msg.result);
+        }
+      } catch (e) {}
+    };
+
+    activeAgent.on('message', handler);
+    activeAgent.send(JSON.stringify({ commandId, action, payload }));
+  });
+}
 
 // Middleware de autenticación
 app.use((req, res, next) => {
@@ -32,16 +92,145 @@ app.get('/', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'online', timestamp: new Date().toISOString() });
+  const activePC = Array.from(connectedAgents.values()).filter((ws) => ws.readyState === WebSocket.OPEN).length;
+  res.json({ status: 'online', pcAgentConnected: activePC > 0, timestamp: new Date().toISOString() });
 });
 
-// Chat con Groq Llama-3.3
+// Endpoints del PC Agent
+app.get('/api/pc/status', (req, res) => {
+  const activeCount = Array.from(connectedAgents.values()).filter((ws) => ws.readyState === WebSocket.OPEN).length;
+  res.json({ connected: activeCount > 0, activeAgents: activeCount });
+});
+
+app.post('/api/pc/command', async (req, res) => {
+  const { action, payload } = req.body;
+  if (!action) return res.status(400).json({ error: 'Falta action' });
+  const result = await sendTaskToPCAgent(action, payload);
+  res.json(result);
+});
+
+async function checkAndExecutePCCommand(text: string): Promise<{ executed: boolean; resultText?: string }> {
+  const lower = text.toLowerCase();
+  if (lower.includes('captura') || lower.includes('screenshot')) {
+    const res = await sendTaskToPCAgent('takeScreenshot');
+    if (res.success) return { executed: true, resultText: 'He tomado una captura de pantalla de su sistema, señor.' };
+    return { executed: true, resultText: `No se pudo tomar la captura: ${res.error}` };
+  }
+  if (lower.includes('procesos') || lower.includes('programas abiertos')) {
+    const res = await sendTaskToPCAgent('listProcesses');
+    if (res.success) {
+      const list = (res.data || []).slice(0, 6).map((p: any) => p.ProcessName).join(', ');
+      return { executed: true, resultText: `Programas activos principales en su PC: ${list}.` };
+    }
+    return { executed: true, resultText: `Error consultando procesos: ${res.error}` };
+  }
+  if (lower.includes('abre ') || lower.includes('abrir ')) {
+    const appName = text.replace(/.*(abre|abrir)\s+/i, '').trim();
+    if (appName) {
+      const res = await sendTaskToPCAgent('openApplication', { appName });
+      if (res.success) return { executed: true, resultText: `Abriendo '${appName}' en su ordenador, señor.` };
+      return { executed: true, resultText: `No se pudo abrir '${appName}': ${res.error}` };
+    }
+  }
+  return { executed: false };
+}
+
+// Chat con OmniRoute (con Fallback a Groq Llama-3.3 y Detección Automática de Visión)
 app.post('/api/chat', async (req, res) => {
-  const { messages } = req.body;
+  const { messages, model, imageBase64 } = req.body;
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({ error: 'Missing messages' });
   }
 
+  // 0. Si hay una imagen incluida, enrutar automáticamente al modelo de Visión
+  const hasImage = imageBase64 || messages.some((m: any) => Array.isArray(m.content) && m.content.some((c: any) => c.type === 'image_url'));
+  if (hasImage) {
+    const textPrompt = typeof messages[messages.length - 1]?.content === 'string' 
+      ? messages[messages.length - 1].content 
+      : 'Analiza esta imagen y responde como J.A.R.V.I.S.';
+
+    const imgData = imageBase64 || messages.find((m: any) => Array.isArray(m.content))?.content?.find((c: any) => c.type === 'image_url')?.image_url?.url?.split(',')[1];
+
+    try {
+      const groqVisionRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${GROQ_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'llama-3.2-11b-vision-preview',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: textPrompt },
+                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imgData}` } },
+              ],
+            },
+          ],
+        }),
+      });
+
+      const data = await groqVisionRes.json();
+      if (groqVisionRes.ok && data.choices?.[0]?.message?.content) {
+        return res.json({
+          success: true,
+          modelUsed: 'Groq Vision Llama-3.2',
+          message: { role: 'assistant', content: data.choices[0].message.content },
+        });
+      }
+    } catch (e: any) {
+      console.log('Error en análisis de visión:', e.message);
+    }
+  }
+
+  const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user')?.content || '';
+  const pcExec = await checkAndExecutePCCommand(lastUserMessage);
+  if (pcExec.executed) {
+    return res.json({
+      success: true,
+      modelUsed: 'JARVIS PC Exec',
+      message: { role: 'assistant', content: pcExec.resultText },
+    });
+  }
+
+  const systemMessage = {
+    role: 'system',
+    content: 'Eres J.A.R.V.I.S., una inteligencia artificial personal de élite. Hablas en español, eres elegante, preciso y leal a tu señor. Respondes de forma concisa pero inteligente.',
+  };
+
+  const targetModel = model || process.env.DEFAULT_MODEL || 'omniroute/auto/best-coding';
+
+  // 1. Intentar responder vía OmniRoute
+  try {
+    const omniRes = await fetch(`${OMNIROUTE_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${OMNIROUTE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: targetModel,
+        messages: [systemMessage, ...messages],
+      }),
+    });
+
+    if (omniRes.ok) {
+      const data = await omniRes.json();
+      if (data.choices?.[0]?.message?.content) {
+        return res.json({
+          success: true,
+          modelUsed: `OmniRoute [${targetModel}]`,
+          message: { role: 'assistant', content: data.choices[0].message.content },
+        });
+      }
+    }
+  } catch (err: any) {
+    console.log('OmniRoute no disponible, utilizando fallback Groq:', err.message);
+  }
+
+  // 2. Fallback a Groq Llama-3.3
   try {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -51,13 +240,7 @@ app.post('/api/chat', async (req, res) => {
       },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
-        messages: [
-          {
-            role: 'system',
-            content: 'Eres J.A.R.V.I.S., una inteligencia artificial personal de élite. Hablas en español, eres elegante, preciso y leal a tu señor. Respondes de forma concisa pero inteligente.',
-          },
-          ...messages,
-        ],
+        messages: [systemMessage, ...messages],
       }),
     });
 
@@ -65,7 +248,7 @@ app.post('/api/chat', async (req, res) => {
     if (response.ok && data.choices?.[0]?.message?.content) {
       return res.json({
         success: true,
-        modelUsed: 'Groq Llama-3.3-70b',
+        modelUsed: 'Groq Llama-3.3-70b (Fallback)',
         message: { role: 'assistant', content: data.choices[0].message.content },
       });
     }
@@ -76,6 +259,52 @@ app.post('/api/chat', async (req, res) => {
       success: true,
       modelUsed: 'JARVIS Fallback',
       message: { role: 'assistant', content: 'Estoy en línea, señor. ¿En qué puedo asistirle?' },
+    });
+  }
+});
+
+// Análisis de imágenes (Visión)
+app.post('/api/analyze-image', async (req, res) => {
+  const { imageBase64, prompt } = req.body;
+  if (!imageBase64) return res.status(400).json({ error: 'Falta la imagen' });
+
+  const textPrompt = prompt || 'Describe con precisión lo que ves en esta imagen y responde como J.A.R.V.I.S.';
+
+  try {
+    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${GROQ_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'llama-3.2-11b-vision-preview',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: textPrompt },
+              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } },
+            ],
+          },
+        ],
+      }),
+    });
+
+    const data = await groqRes.json();
+    if (groqRes.ok && data.choices?.[0]?.message?.content) {
+      return res.json({
+        success: true,
+        modelUsed: 'Groq Vision Llama-3.2',
+        message: { role: 'assistant', content: data.choices[0].message.content },
+      });
+    }
+    throw new Error(data.error?.message || 'Vision error');
+  } catch (err: any) {
+    console.error('Analyze Image error:', err.message);
+    return res.json({
+      success: false,
+      error: `El modelo de visión no pudo procesar la imagen: ${err.message}`,
     });
   }
 });
@@ -145,10 +374,11 @@ app.post('/api/tts', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log('==================================================');
   console.log(`🤖 JARVIS Core Server escuchando en puerto ${PORT}`);
-  console.log(`🧠 IA: Groq Llama-3.3-70b + Whisper`);
+  console.log(`🧠 IA: OmniRoute / Groq Llama-3.3-70b + Whisper`);
   console.log(`🎙️ Voz: ElevenLabs`);
+  console.log(`💻 WebSocket Agent Server: /ws/agent`);
   console.log('==================================================');
 });
